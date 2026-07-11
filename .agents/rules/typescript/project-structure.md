@@ -14,9 +14,12 @@ This is a Next.js App Router full-stack application (React 19) with an embedded 
 | Directory | Ownership |
 | --- | --- |
 | `agent/` | Eve configuration, web channel, instructions, skills, tools, and agent-only helpers (`agent/lib/`, deterministic domain search in `agent/lib/domain/`) |
-| `app/` | Next.js App Router UI: pages, layouts, shared components in `app/_components/`, and route handlers in `app/api/**/route.ts` |
-| `server/` | Server logic, authentication, Drizzle schema, and migrations |
-| `lib/` | Client-side helpers (Better Auth client) and sample data |
+| `app/` | Next.js App Router UI and thin framework mounts; `app/api/v1/[[...slugs]]/route.ts` only exports the Elysia fetch handler |
+| `server/api/` | Elysia HTTP controllers, request/response policy, Zod HTTP contracts, and OpenAPI generation |
+| `server/application/` | Framework-independent use cases and typed business/integration failures; never accept `Request`, `Response`, or `Headers` |
+| `server/utils/` | Server adapters for authentication, persistence, and other infrastructure |
+| `server/db/` | Drizzle schema, client, and forward-only migrations |
+| `lib/` | Browser adapters (Better Auth, Eden, TanStack Query keys) and sample data |
 | `shared/` | Cross-layer serializable types and helpers |
 | `tests/` | Deterministic Vitest tests |
 
@@ -35,5 +38,7 @@ Do not invent `#evals/*`; it is not configured.
 
 - Keep Eve-only helpers in `agent/lib/`.
 - Keep browser code out of `server/` and server secrets out of client components and `lib/`.
-- Keep route handlers thin and place reusable server logic under `server/utils/` or a cohesive server module.
+- Keep the Next.js route mount declarative. Elysia controllers own HTTP parsing and status/header conversion, then call `server/application/` with authenticated user IDs and plain DTOs.
+- Server Components call the same application service directly instead of self-fetching. Client Components use the Eden adapter through TanStack Query and do not call application endpoints with raw `fetch`.
+- Keep database and provider details behind adapters in `server/utils/`; application services depend on their typed interfaces.
 - Put cross-layer contracts in `shared/` only when they are serializable and do not pull server or browser dependencies across the boundary.

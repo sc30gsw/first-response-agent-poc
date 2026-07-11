@@ -25,12 +25,14 @@ Key constraints (REQUIREMENT §8/§10):
 | `pnpm dev`         | Start the Next.js dev server (`next dev`)       |
 | `pnpm test`        | Run deterministic Vitest tests                  |
 | `pnpm build`       | Production build (`eve build && next build`)    |
-| `pnpm typecheck`   | TypeScript check (`tsc --noEmit`)               |
+| `pnpm typecheck`   | Generate Next route types, then run TypeScript  |
 | `pnpm db:generate` | Generate Drizzle migrations (`drizzle-kit`)     |
 | `pnpm db:migrate`  | Apply migrations (`drizzle-kit`)                |
 
 Required env: `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` (+ `TURSO_DATABASE_URL` /
-`TURSO_AUTH_TOKEN` on Vercel). See [docs/ENVIRONMENT.md](docs/ENVIRONMENT.md).
+`TURSO_AUTH_TOKEN` on Vercel). Existing environments may use `TURSO_URL` as a
+compatibility alias when `TURSO_DATABASE_URL` is unset. See
+[docs/ENVIRONMENT.md](docs/ENVIRONMENT.md).
 
 ## Toolchain & Quality Gates
 
@@ -54,8 +56,8 @@ Allowed scopes: `deps, app, agent, server, docs`. Subject must not start with up
 first-response-agent-poc/
 ├── agent/          # Eve agent (channels, tools, skills, instructions, lib/domain)
 ├── app/            # Next.js App Router UI (pages, _components/, app/api/**/route.ts)
-├── server/         # Server utils, Drizzle schema and migrations
-├── lib/            # Client helpers (Better Auth client) and sample data
+├── server/         # Elysia API, application services, server utils, Drizzle
+├── lib/            # Better Auth/Eden client adapters and sample data
 ├── shared/         # Cross-layer types and helpers
 ├── tests/          # Deterministic Vitest tests
 └── docs/           # Architecture and environment docs
@@ -90,6 +92,27 @@ The web channel ([`agent/channels/eve.ts`](agent/channels/eve.ts)) authenticates
 callers from the verified Better Auth session (root [`auth.ts`](auth.ts)); never
 trust a body-supplied identity. Search candidates and ranking are fixed in tool
 code — the LLM explains results but must not reorder or invent them.
+
+## Application API
+
+The browser API is the Elysia app mounted at `app/api/v1/[[...slugs]]/route.ts`.
+Keep its controllers limited to HTTP validation and plain response conversion:
+
+```
+Client Component -> TanStack Query -> lib/api-client.ts (Eden) -> /api/v1
+Route Handler -> server/api/ -> server/application/ -> server/utils/ + Drizzle
+Server Component -> server/application/ directly (no self-fetch)
+```
+
+Expected authentication, validation, authorization, conflict, limit, and I/O
+failures use typed `better-result` values inside application code. Unwrap them
+only at HTTP, Eve, or TanStack Query boundaries; never serialize `Result`,
+`TaggedError`, `Error`, or `Response` instances as API or tool data.
+
+Authentication, same-origin checks, request-body policy, and ETag/If-Match
+parsing belong to `server/api/`. Application services receive an authenticated
+user ID, plain DTOs, and an explicit revision, and depend only on repository
+interfaces.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

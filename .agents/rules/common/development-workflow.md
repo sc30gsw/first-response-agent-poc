@@ -14,7 +14,7 @@ Use pnpm 9.15.0 and Node.js 24 or newer. Install dependencies before relying on 
 | --- | --- |
 | `pnpm dev` | Start the Next.js dev server (`next dev`) |
 | `pnpm test` | Run deterministic Vitest tests |
-| `pnpm typecheck` | Run `tsc --noEmit -p tsconfig.json` |
+| `pnpm typecheck` | Run `next typegen`, then `tsc --noEmit -p tsconfig.json` |
 | `pnpm build` | Run `eve build` then `next build` |
 | `pnpm start` | Serve the production Next.js build |
 | `pnpm db:generate` | Generate Drizzle migrations via `drizzle-kit generate` |

@@ -12,7 +12,7 @@
 
 という仮説を検証することを目的としています。
 
-## 背景
+### 背景
 
 同社では、
 
@@ -35,7 +35,7 @@
 
 が課題になる可能性があると考えました。
 
-## 解決したい課題
+### 解決したい課題
 
 | # | 課題 |
 |---|------|
@@ -44,7 +44,7 @@
 | ③ | 経験者が誰なのか分からず、**質問相手を探すだけで時間がかかる** |
 | ④ | AIだけでは判断できない案件も多く、**最終的には人へ相談する必要がある** |
 
-## PoCのコンセプト
+### PoCのコンセプト
 
 AIで人を置き換えることではありません。
 
@@ -55,6 +55,14 @@ AIが
 - 社内の知見へ素早くアクセスする
 
 ことで、**人がより良い判断をするための初動を支援する**ことを目的としています。
+
+## デモフロー
+
+1. `pnpm dev` で起動し、トップページから匿名認証でデモを開始する
+2. 相談内容を自然言語で入力する（例:「接道条件に懸念がある古い家屋を所有しており、活用や売却を検討するための確認事項が分からない」）
+3. エージェントが案件要約・初動確認事項・類似案件・有識者候補を構造化カードで提示する
+4. 必要に応じて有識者への相談依頼文の下書きを生成する
+5. 確認後、ユーザーメニューの「デモデータを削除」でデモデータを削除する
 
 ## 主な機能
 
@@ -72,17 +80,47 @@ AIが
 相談内容 → 案件要約 → 不足情報 → 類似事例 → 有識者候補 → 相談文生成
 ```
 
+## 安全上の制約
+
+### AI断定の回避
+
+AIは法的判断・税務判断・査定価格・契約可否を断定しません。最終判断は必ず人が行う前提です。生成される初動レポートは「人へ相談するための準備」に徹します。
+
+### 決定的検索
+
+類似案件・有識者・ガイドの検索順位はツールコード（`agent/lib/domain/`）で決定的に確定します。LLMは確定済みの結果を説明するだけで、順位や採点を変更しません。同一入力に対して常に同一の検索結果になります。
+
+### 匿名認証
+
+Better Auth の匿名プラグインによるデモ用認証です。セッションは24時間で失効します。ただし、セッションの失効やブラウザを閉じることだけでは、保存済みデータを自動削除しません。
+
+ユーザーメニューの「デモデータを削除」を実行すると、匿名ユーザー・認証セッション・Turso上のスレッドを削除し、関連するEveセッションへのアプリケーション側アクセスを失効させます。この操作を行わない場合、データがデータベースに残る可能性があります。恒久的なアカウント管理は対象外です。
+
+Eveランタイムが保持する実行セッション本体はアプリケーションDBとは別管理です。本アプリは削除要求を記録して再アクセスを拒否しますが、基盤上の物理削除完了までは保証しません。
+
+### 入力データの取り扱い
+
+相談入力と生成処理に必要な会話データは、回答生成のためLLM APIへ送信されます。また、チャット履歴としてアプリケーションDBへ保存され、生成処理に伴う実行データがEve側の保持ポリシーに従って残る可能性があります。個人情報の自動検出、遮断、マスキングは行わないため、実在する顧客や社員の情報を入力しないでください。
+
+### その他の限界
+
+- データはすべて架空のダミー（日本語）。実在の顧客・社員データは一切使用していません
+- RAG・案件管理システム・メッセージング・メールなどの外部連携は未実装
+- 権限管理・ワークフローは対象外
+
 ## 技術構成
 
 - Next.js（App Router）+ React
 - TypeScript
+- Elysia + OpenAPI（`/api/v1`）
+- TanStack Query + Eden（ブラウザのserver state同期）
+- better-result（想定内エラーの型付き処理）
 - Eve（エージェントランタイム。`next.config.ts` の `withEve` で統合）
-- Anthropic Claude（Eve 経由。モデルは `agent/agent.ts` で指定）
+- LLM API（Eve 経由。モデル設定は `agent/agent.ts` で管理）
 - Better Auth（匿名認証プラグイン）
 - Drizzle ORM + libsql（ローカル SQLite / Turso）
 - Zod
 - Vitest
-- Tailwind CSS
 
 ## セットアップ
 
@@ -101,50 +139,39 @@ pnpm dev               # http://localhost:3000
 |------|------|
 | `BETTER_AUTH_SECRET` | Better Auth の署名シークレット |
 | `BETTER_AUTH_URL` | 本番の公開URL（ローカルは未設定で可） |
-| `TURSO_DATABASE_URL` | リモート libSQL の URL（Vercel では必須。ローカル未設定時はファイル SQLite にフォールバック） |
+| `TURSO_DATABASE_URL` | リモート libSQL の推奨URL名（Vercelではこの変数または互換aliasが必須） |
+| `TURSO_URL` | 既存環境向けの互換alias（`TURSO_DATABASE_URL` が未設定の場合のみ使用） |
 | `TURSO_AUTH_TOKEN` | `libsql://` 接続時に必須 |
 
 詳細は [docs/ENVIRONMENT.md](./docs/ENVIRONMENT.md) を参照してください。
+
+## API
+
+スレッドAPIはElysiaで `/api/v1` 以下へ公開します。ブラウザはEdenの型付きadapterをTanStack Queryから利用し、Server Componentは同じApplication Serviceを直接呼び出します。
+更新はETag/If-Matchで競合を検出し、API responseはOpenAPIを含め `Cache-Control: no-store` とします。
+
+- 対話型OpenAPI: [`/api/v1/openapi`](http://localhost:3000/api/v1/openapi)
+- OpenAPI JSON: [`/api/v1/openapi/json`](http://localhost:3000/api/v1/openapi/json)
 
 ## 品質ゲート
 
 ```bash
 pnpm test        # Vitest（決定的テスト）
-pnpm typecheck   # tsc --noEmit
+pnpm typecheck   # Next.js route型生成 + tsc --noEmit
 pnpm build       # eve build && next build
 ```
 
-## PoCとしての制約
-
-### AI断定の回避
-
-AIは法的判断・税務判断・査定価格・契約可否を断定しません。最終判断は必ず人が行う前提です。生成される初動レポートは「人へ相談するための準備」に徹します。
-
-### 決定的検索
-
-類似案件・有識者・ガイドの検索順位はツールコード（`agent/lib/domain/`）で決定的に確定します。LLMは確定済みの結果を説明するだけで、順位や採点を変更しません。同一入力に対して常に同一の検索結果になります。
-
-### 匿名認証
-
-Better Auth の匿名プラグインによるデモ用認証です。セッションは24時間で失効し、ユーザー削除時には関連スレッドも削除されます。恒久的なアカウント管理は対象外です。
-
-### その他の限界
-
-- データはすべて架空のダミー（日本語）。実在の顧客・社員データは一切使用していません
-- RAG・外部システム連携（kintone / Slack / メール送信）は未実装
-- 権限管理・ワークフローは対象外
-
 ## デプロイ概要（Vercel）
 
-[`vercel.json`](./vercel.json) の `experimentalServices` により 2 サービスがデプロイされます。
+[`vercel.json`](./vercel.json) のサービス設定により 2 サービスがデプロイされます。
 
 | サービス | 内容 |
 |----------|------|
-| `web` | Next.js（UI + API Routes） |
+| `web` | Next.js（UI + Elysia `/api/v1`） |
 | `eve` | Eve エージェントランタイム（`/_eve_internal/eve`） |
 
 1. Vercel にプロジェクトを作成する
-2. 環境変数を設定する: `BETTER_AUTH_SECRET` / `BETTER_AUTH_URL`（本番URL）/ `TURSO_DATABASE_URL` / `TURSO_AUTH_TOKEN`
+2. 環境変数を設定する: `BETTER_AUTH_SECRET` / `BETTER_AUTH_URL`（本番URL）/ `TURSO_DATABASE_URL`（既存環境では `TURSO_URL` も可）/ `TURSO_AUTH_TOKEN`
 3. リモートDBへマイグレーションを適用する（`pnpm db:migrate`）
 
 Vercel（サーバーレス）ではローカルファイル SQLite を作成できないため、Turso などのホスト型 libSQL データベースが必須です。
@@ -152,10 +179,10 @@ Vercel（サーバーレス）ではローカルファイル SQLite を作成で
 ## ディレクトリ構成
 
 ```
-├── app/        # Next.js App Router（ページ + _components/ + app/api/**/route.ts）
+├── app/        # Next.js App Router（ページ + _components/ + Elysia route mount）
 ├── agent/      # Eve エージェント（channels/ tools/ skills/ instructions.ts, lib/domain=決定的検索）
-├── server/     # サーバーユーティリティ / Drizzle スキーマ・マイグレーション
-├── lib/        # クライアントヘルパー（auth-client, ダミーデータ）
+├── server/     # Elysia API / Application Service / Drizzle・サーバーユーティリティ
+├── lib/        # Better Auth・Edenクライアントadapter / ダミーデータ
 ├── shared/     # 層間で共有する型・定義
 ├── tests/      # Vitest（決定的テスト）
 └── docs/       # ドキュメント
@@ -165,7 +192,7 @@ Vercel（サーバーレス）ではローカルファイル SQLite を作成で
 
 ## 今後の展望
 
-将来的には kintone・社内ナレッジ・過去案件・Slack などと連携し、AIだけではなく **「AI + 人」** によるナレッジ共有基盤へ発展させることを想定しています。
+将来的には社内ナレッジ、過去案件、案件管理システム、メッセージングなどと連携し、AIだけではなく **「AI + 人」** によるナレッジ共有基盤へ発展させることを想定しています。
 
 ## 注意事項
 
