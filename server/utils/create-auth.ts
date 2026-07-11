@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 import type { LibSQLDatabase } from "drizzle-orm/libsql";
 import { threads } from "../db/schema/threads";
 
-/** 匿名セッションの有効期間（秒）: 24時間で失効させる */
+/** Anonymous session lifetime in seconds. */
 const SESSION_TTL_SECONDS = 60 * 60 * 24;
 
 type CreateAuthOptions<TSchema extends Record<string, unknown>> = {
@@ -14,13 +14,12 @@ type CreateAuthOptions<TSchema extends Record<string, unknown>> = {
   baseURL?: string;
   secret?: string;
   trustedOrigins?: string[];
-  /** メール/パスワード認証を許可するか。PoCは匿名のみを既定とする */
+  /** Whether email/password auth is available. The PoC defaults to anonymous-only. */
   allowEmailPassword?: boolean;
 };
 
 /**
- * better-authインスタンスのファクトリ。
- * 実行環境（@nuxthub/db）とテスト（インメモリlibsql）で同一構成を共有する。
+ * Creates the same Better Auth configuration for runtime libSQL and in-memory tests.
  */
 export function createAuth<TSchema extends Record<string, unknown>>(
   options: CreateAuthOptions<TSchema>,
@@ -43,7 +42,7 @@ export function createAuth<TSchema extends Record<string, unknown>>(
       expiresIn: SESSION_TTL_SECONDS,
     },
     rateLimit: {
-      // 既定ではproductionのみ有効のため、全環境で明示的に有効化する
+      // Better Auth enables this only in production by default, so enable it explicitly.
       enabled: true,
       storage: "memory",
     },
@@ -51,7 +50,7 @@ export function createAuth<TSchema extends Record<string, unknown>>(
       user: {
         delete: {
           before: async (user) => {
-            // FK cascadeに依存せず、匿名ユーザー削除時に関連スレッドを確実に消す
+            // Delete related threads even when a local SQLite connection does not enforce FKs.
             await db.delete(threads).where(eq(threads.userId, user.id));
           },
         },

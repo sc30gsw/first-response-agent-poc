@@ -1,7 +1,8 @@
 import { and, desc, eq } from "drizzle-orm";
-import { db, schema } from "@nuxthub/db";
 import type { ThreadRecord, ThreadState, ThreadSummary } from "#shared/types/thread";
 import { truncateThreadTitle } from "#shared/types/thread";
+import { db } from "../db/client";
+import { threads } from "../db/schema/threads";
 
 const LIST_LIMIT = 50;
 
@@ -36,7 +37,7 @@ function mergeThreadState(existing: ThreadState | null, incoming: ThreadState): 
   };
 }
 
-function rowToSummary(row: typeof schema.threads.$inferSelect): ThreadSummary {
+function rowToSummary(row: typeof threads.$inferSelect): ThreadSummary {
   return {
     id: row.id,
     title: row.title,
@@ -45,7 +46,7 @@ function rowToSummary(row: typeof schema.threads.$inferSelect): ThreadSummary {
   };
 }
 
-function rowToRecord(row: typeof schema.threads.$inferSelect): ThreadRecord {
+function rowToRecord(row: typeof threads.$inferSelect): ThreadRecord {
   return {
     ...rowToSummary(row),
     state: parseThreadState(row.state),
@@ -54,9 +55,9 @@ function rowToRecord(row: typeof schema.threads.$inferSelect): ThreadRecord {
 
 export async function listThreadsForUser(userId: string): Promise<ThreadSummary[]> {
   const rows = await db.select()
-    .from(schema.threads)
-    .where(eq(schema.threads.userId, userId))
-    .orderBy(desc(schema.threads.updatedAt))
+    .from(threads)
+    .where(eq(threads.userId, userId))
+    .orderBy(desc(threads.updatedAt))
     .limit(LIST_LIMIT);
 
   return rows.map(rowToSummary);
@@ -64,10 +65,10 @@ export async function listThreadsForUser(userId: string): Promise<ThreadSummary[
 
 export async function getThreadForUser(userId: string, id: string) {
   const [row] = await db.select()
-    .from(schema.threads)
+    .from(threads)
     .where(and(
-      eq(schema.threads.id, id),
-      eq(schema.threads.userId, userId),
+      eq(threads.id, id),
+      eq(threads.userId, userId),
     ))
     .limit(1);
 
@@ -81,7 +82,7 @@ export async function createThreadForUser(
   const id = input.id ?? crypto.randomUUID();
   const title = input.title?.trim() || "New chat";
 
-  await db.insert(schema.threads).values({
+  await db.insert(threads).values({
     id,
     userId,
     title: truncateThreadTitle(title),
@@ -89,10 +90,7 @@ export async function createThreadForUser(
 
   const created = await getThreadForUser(userId, id);
   if (!created) {
-    throw createError({
-      statusCode: 500,
-      statusMessage: "Failed to create thread",
-    });
+    throw new Error("Failed to create thread");
   }
 
   return created;
@@ -111,7 +109,7 @@ export async function updateThreadForUser(
     return undefined;
   }
 
-  await db.update(schema.threads)
+  await db.update(threads)
     .set({
       updatedAt: new Date(),
       ...(patch.title !== undefined ? { title: truncateThreadTitle(patch.title) } : {}),
@@ -120,8 +118,8 @@ export async function updateThreadForUser(
         : {}),
     })
     .where(and(
-      eq(schema.threads.id, id),
-      eq(schema.threads.userId, userId),
+      eq(threads.id, id),
+      eq(threads.userId, userId),
     ));
 
   return getThreadForUser(userId, id);
@@ -133,10 +131,10 @@ export async function deleteThreadForUser(userId: string, id: string) {
     return false;
   }
 
-  await db.delete(schema.threads)
+  await db.delete(threads)
     .where(and(
-      eq(schema.threads.id, id),
-      eq(schema.threads.userId, userId),
+      eq(threads.id, id),
+      eq(threads.userId, userId),
     ));
 
   return true;

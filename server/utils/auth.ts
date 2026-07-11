@@ -1,4 +1,5 @@
-import { db, schema } from "@nuxthub/db";
+import { db } from "../db/client";
+import * as schema from "../db/schema";
 import { createAuth } from "./create-auth";
 
 const productionUrl = process.env.BETTER_AUTH_URL?.trim();
