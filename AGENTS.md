@@ -5,7 +5,7 @@
 ## PoC Context
 
 This repo is a fork of vercel-labs/personal-agent-template being repurposed as
-「複雑不動産案件 初動支援アシスタント」(MarksLife First Response Agent PoC).
+「複雑不動産案件 初動支援アシスタント」(First Response Agent PoC).
 **REQUIREMENT.md is the source of truth** for product scope.
 
 Key constraints (REQUIREMENT §8/§10):
