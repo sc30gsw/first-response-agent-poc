@@ -1,19 +1,13 @@
 "use client";
 
 import type { HandleMessageStreamEvent } from "eve/client";
-import { useEveAgent, type EveDynamicToolPart, type EveMessage } from "eve/react";
+import { useEveAgent, type EveMessage } from "eve/react";
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import type { ThreadRecord, ThreadSummary } from "@/shared/types/thread";
+import type { Expert } from "@/shared/tools/first-response";
+import { ToolResult } from "./tool-results";
 import { WorkspaceShell } from "./workspace-shell";
-
-const TOOL_LABELS: Record<string, string> = {
-  analyze_case: "初動レポート",
-  draft_consultation_request: "相談依頼文",
-  search_experts: "有識者候補",
-  search_guides: "社内初動ガイド",
-  search_similar_cases: "類似事例",
-};
 
 type EveChatProps = {
   readonly thread: ThreadRecord;
@@ -57,6 +51,10 @@ export function EveChat({ thread, threads }: EveChatProps) {
     }
   }, [draftStorageKey]);
 
+  function focusComposer() {
+    inputRef.current?.focus();
+  }
+
   async function submitMessage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const message = inputRef.current?.value.trim() ?? "";
@@ -82,7 +80,14 @@ export function EveChat({ thread, threads }: EveChatProps) {
         {agent.data.messages.length > 0 ? (
           <ol className="message-log" role="log" aria-live="polite" aria-relevant="additions text">
             {agent.data.messages.map((message) => (
-              <ChatMessage key={message.id} message={message} canRespond={!isBusy} onRespond={(requestId, optionId) => agent.send({ inputResponses: [{ requestId, optionId }] })} />
+              <ChatMessage
+                key={message.id}
+                message={message}
+                canRespond={!isBusy}
+                onRespond={(requestId, optionId) => agent.send({ inputResponses: [{ requestId, optionId }] })}
+                onRequestConsultation={(expert) => agent.send({ message: `社員ID ${expert.id}（${expert.name}）への社内向け相談依頼文を作成してください。` })}
+                onFocusComposer={focusComposer}
+              />
             ))}
           </ol>
         ) : (
@@ -116,6 +121,9 @@ export function EveChat({ thread, threads }: EveChatProps) {
               <button className="primary-button" type="submit">送信 <span aria-hidden="true">↑</span></button>
             )}
           </div>
+          <p className="ai-disclaimer">
+            AIは初動整理の参考情報を提示するものであり、法的・税務的判断、査定価格および契約可否の判断は行いません。最終判断は担当者または適切な専門家が行ってください。
+          </p>
         </form>
       </div>
     </WorkspaceShell>
@@ -126,10 +134,14 @@ function ChatMessage({
   message,
   canRespond,
   onRespond,
+  onRequestConsultation,
+  onFocusComposer,
 }: {
   readonly message: EveMessage;
   readonly canRespond: boolean;
   readonly onRespond: (requestId: string, optionId: string) => Promise<void>;
+  readonly onRequestConsultation: (expert: Expert) => Promise<void>;
+  readonly onFocusComposer: () => void;
 }) {
   return (
     <li className={`chat-message chat-message--${message.role}`}>
@@ -138,46 +150,11 @@ function ChatMessage({
         {message.parts.map((part, index) => {
           if (part.type === "text") return <p key={`${message.id}:text:${index}`}>{part.text}</p>;
           if (part.type === "dynamic-tool") {
-            return <ToolProgress key={part.toolCallId} part={part} canRespond={canRespond} onRespond={onRespond} />;
+            return <ToolResult key={part.toolCallId} part={part} canRespond={canRespond} onRespond={onRespond} onRequestConsultation={onRequestConsultation} onFocusComposer={onFocusComposer} />;
           }
           return null;
         })}
       </div>
     </li>
-  );
-}
-
-function ToolProgress({
-  part,
-  canRespond,
-  onRespond,
-}: {
-  readonly part: EveDynamicToolPart;
-  readonly canRespond: boolean;
-  readonly onRespond: (requestId: string, optionId: string) => Promise<void>;
-}) {
-  const request = part.toolMetadata?.eve?.inputRequest;
-  const isComplete = part.state === "output-available";
-
-  return (
-    <section className="tool-progress">
-      <div>
-        <span className={isComplete ? "tool-dot tool-dot--complete" : "tool-dot"} aria-hidden="true" />
-        <strong>{TOOL_LABELS[part.toolName] ?? "案件情報を確認中"}</strong>
-      </div>
-      <span>{isComplete ? "完了" : part.state === "output-error" ? "失敗" : "処理中"}</span>
-      {request ? (
-        <div className="input-request">
-          <p>{request.prompt}</p>
-          <div>
-            {request.options?.map((option) => (
-              <button key={option.id} type="button" disabled={!canRespond} onClick={() => void onRespond(request.requestId, option.id)}>
-                {option.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      ) : null}
-    </section>
   );
 }
