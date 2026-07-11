@@ -1,20 +1,21 @@
 # First Response Agent PoC
 
-複雑不動産案件 初動支援アシスタント — built with Eve and Next.js (App Router).
+Proof-of-concept assistant for first response to complex real-estate cases,
+built with Eve and Next.js (App Router).
 
 ## PoC Context
 
-This repo is a fork of vercel-labs/personal-agent-template being repurposed as
-「複雑不動産案件 初動支援アシスタント」(First Response Agent PoC).
+This repository implements a proof of concept for a complex real-estate case
+first-response assistant.
 **REQUIREMENT.md is the source of truth** for product scope.
 
 Key constraints (REQUIREMENT §8/§10):
 
-- Web channel ONLY — no Slack, iMessage, schedules, or multi-agent
+- Web channel ONLY — no external messaging, schedules, or multi-agent
 - Dummy JSON case/employee data — no real data connections
-- Legacy template integrations (Slack, Sendblue, Linear, GitHub) have been removed.
-  Remaining Eve built-in tools (bash, web_search, todo, etc.) are explicitly
-  disabled via `disableTool()` stubs in `agent/tools/`.
+- Out-of-scope integrations have been removed. Remaining Eve built-in tools
+  (bash, web_search, todo, etc.) are explicitly disabled via `disableTool()`
+  stubs in `agent/tools/`.
 
 ## Quick Reference
 
@@ -69,14 +70,11 @@ Path aliases (`tsconfig.json`): `@/*` → repository root, `#lib/*` → `agent/l
 - [Environment](docs/ENVIRONMENT.md) — Environment variables
 - [README](README.md) — Quick start and feature overview
 
-Some docs under `docs/` still describe the legacy template. Where they conflict
-with the code or this file, the code, `REQUIREMENT.md`, and this file win.
-
 ## Eve Framework
 
 This project uses Eve with the Next.js integration (`eve/next` — `withEve` wraps
 the config in `next.config.ts`). Before writing agent code, read the relevant
-guide in `node_modules/eve/dist/docs/public/`
+guide in `node_modules/eve/docs/`
 (run `pnpm install` first; verify the path exists — it ships inside the eve package).
 
 ## Agent Data Access

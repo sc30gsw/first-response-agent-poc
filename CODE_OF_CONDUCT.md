@@ -59,8 +59,8 @@ representative at an online or offline event.
 ## Enforcement
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
-reported to the community leaders responsible for enforcement at
-[GitHub issues](https://github.com/vercel-labs/personal-agent-template/issues).
+reported to the community leaders responsible for enforcement through the
+[current repository's issues](https://github.com/sc30gsw/first-response-agent-poc/issues).
 All complaints will be reviewed and investigated promptly and fairly.
 
 All community leaders are obligated to respect the privacy and security of the
