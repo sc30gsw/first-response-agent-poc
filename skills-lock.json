@@ -17,12 +17,6 @@
       "sourceType": "autoskills-registry",
       "computedHash": "0d59bc23f61ba03b850aa3b81392044c5c7fa3662a5f61b98490b20b0f14a56a"
     },
-    "better-result-adopt": {
-      "source": "dmmulroy/better-result",
-      "sourceType": "github",
-      "skillPath": "skills/better-result-adopt/SKILL.md",
-      "computedHash": "bb2cff6d6db16f141cf2d2789a87e0f4a54992f1839a33dc623a434ac49d6115"
-    },
     "chat-sdk": {
       "source": "vercel/chat",
       "sourceType": "github",
@@ -49,6 +43,12 @@
       "source": "bobmatnyc/claude-mpm-skills",
       "sourceType": "autoskills-registry",
       "computedHash": "ee38c0b7737febd7409d84e613099a0f276e215e0bbda418b2593786ea8a4754"
+    },
+    "elysiajs": {
+      "source": "elysiajs/skills",
+      "sourceType": "github",
+      "skillPath": "elysia/SKILL.md",
+      "computedHash": "55268e69a2c766ed67e56a0db57544f60cc52dba0c7f024a974baf965e525e1b"
     },
     "emailAndPassword": {
       "source": "better-auth/skills",
@@ -208,21 +208,6 @@
       "source": "antfu/skills",
       "sourceType": "autoskills-registry",
       "computedHash": "be7329a28a492b802061206c2d75603ab294f25f541bc5421d5de8d41abe68b1"
-    },
-    "vue": {
-      "source": "antfu/skills",
-      "sourceType": "autoskills-registry",
-      "computedHash": "4cc429a32520d5a7615d572687c902637459dfd6c92b7faf74afb879247dfbc4"
-    },
-    "vue-best-practices": {
-      "source": "antfu/skills",
-      "sourceType": "autoskills-registry",
-      "computedHash": "1f369104c1aac5c101d71b65a2bd317ad2a1d3ceda160cb5d45da9b389a3f53f"
-    },
-    "vue-debug-guides": {
-      "source": "hyf0/vue-skills",
-      "sourceType": "autoskills-registry",
-      "computedHash": "ef84274bb3af820e3ede22cb55863e6b0755eabe597713707ae9051a81ef3a02"
     },
     "web-design-guidelines": {
       "source": "vercel-labs/agent-skills",

@@ -8,7 +8,7 @@ alwaysApply: false
 
 # Eve
 
-Before changing Eve-authored code, read the relevant documentation shipped under `node_modules/eve/dist/docs/public/`. If dependencies are absent, install them before relying on package APIs. If the path differs in the installed version, locate the packaged docs rather than guessing.
+Before changing Eve-authored code, read the relevant documentation shipped under `node_modules/eve/docs/`. If dependencies are absent, install them before relying on package APIs. If the path differs in the installed version, locate the packaged docs rather than guessing.
 
 ## Authored code
 
