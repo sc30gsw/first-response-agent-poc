@@ -1,0 +1,17 @@
+{
+  "enabledPlugins": {
+    "ecc@ecc": true
+  },
+  "hooks": {
+    "PostToolBatch": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/react-doctor.mjs\""
+          }
+        ]
+      }
+    ]
+  }
+}

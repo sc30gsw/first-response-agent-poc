@@ -2,6 +2,17 @@
 
 Durable personal AI assistant built with Eve and Nuxt.
 
+## PoC Context
+
+This repo is a fork of vercel-labs/personal-agent-template being repurposed as
+「複雑不動産案件 初動支援アシスタント」(MarksLife First Response Agent PoC).
+**REQUIREMENT.md is the source of truth** for product scope.
+
+Key constraints (REQUIREMENT §8/§10):
+- Web channel ONLY — no Slack, iMessage, schedules, or multi-agent
+- Dummy JSON case/employee data — no real data connections
+- Template features (Slack, Sendblue, Linear, GitHub tools) are unused legacy, not yet removed
+
 ## Quick Reference
 
 | Command | Description |
@@ -12,6 +23,21 @@ Durable personal AI assistant built with Eve and Nuxt.
 | `pnpm typecheck` | TypeScript check |
 | `pnpm db:generate` | Generate Drizzle migrations |
 | `pnpm db:migrate` | Apply migrations |
+
+Required env: `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `INTERNAL_API_SECRET` (+ Turso vars on Vercel). See [docs/ENVIRONMENT.md](docs/ENVIRONMENT.md).
+
+## Toolchain & Quality Gates
+
+- pnpm 9.15.0, Node >= 24. Run `pnpm install` first — node_modules may be absent.
+- **No lint, format, or test tooling exists.** The only check is `pnpm typecheck` (what CI runs).
+- Style: `.editorconfig` only (2-space indent, LF, final newline).
+- DB commands go through `nuxt db` (`pnpm db:generate` / `db:migrate`), not raw drizzle-kit.
+  Reset local DB: `rm -rf .data/db && pnpm db:migrate`
+
+## PR Conventions
+
+PR titles must follow Conventional Commits (enforced by CI).
+Allowed scopes: `deps, app, agent, server, docs`. Subject must not start with uppercase.
 
 ## Structure
 
@@ -33,7 +59,8 @@ personal-agent-template/
 
 ## Eve Framework
 
-This project uses Eve with a Nuxt frontend (`eve/nuxt` module). Before writing agent code, read the relevant guide in `node_modules/eve/dist/docs/public/`.
+This project uses Eve with a Nuxt frontend (`eve/nuxt` module). Before writing agent code, read the relevant guide in `node_modules/eve/dist/docs/public/`
+(run `pnpm install` first; verify the path exists — it ships inside the eve package).
 
 ## Internal API Pattern
 

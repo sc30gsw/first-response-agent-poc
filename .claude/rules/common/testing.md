@@ -1,0 +1,1 @@
+../../../.agents/rules/common/testing.md

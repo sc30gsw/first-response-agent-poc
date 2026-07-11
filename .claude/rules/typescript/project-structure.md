@@ -1,0 +1,1 @@
+../../../.agents/rules/typescript/project-structure.md

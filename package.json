@@ -25,7 +25,8 @@
     "start": "nuxt preview",
     "typecheck": "nuxt typecheck",
     "db:generate": "nuxt db generate",
-    "db:migrate": "nuxt db migrate"
+    "db:migrate": "nuxt db migrate",
+    "doctor": "npx react-doctor@latest"
   },
   "dependencies": {
     "@comark/nuxt": "^0.5.0",
@@ -38,6 +39,7 @@
     "@vercel/connect": "0.3.2",
     "ai": "^7.0.16",
     "better-auth": "^1.6.23",
+    "better-result": "^2.9.2",
     "chat": "^4.32.0",
     "chat-adapter-sendblue": "^0.2.0",
     "drizzle-kit": "^0.31.10",
@@ -55,6 +57,7 @@
     "@iconify-json/simple-icons": "^1.2.89",
     "@types/node": "26.1.0",
     "microsandbox": "^0.6.5",
+    "react-doctor": "^0.7.4",
     "typescript": "^6.0.3",
     "vue-tsc": "^3.3.6"
   }
