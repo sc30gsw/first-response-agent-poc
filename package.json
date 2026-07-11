@@ -23,6 +23,7 @@
     "build": "nuxt build",
     "dev": "nuxt dev",
     "start": "nuxt preview",
+    "test": "vitest run",
     "typecheck": "nuxt typecheck",
     "db:generate": "nuxt db generate",
     "db:migrate": "nuxt db migrate",
@@ -59,6 +60,7 @@
     "microsandbox": "^0.6.5",
     "react-doctor": "^0.7.4",
     "typescript": "^6.0.3",
+    "vitest": "^4.1.10",
     "vue-tsc": "^3.3.6"
   }
 }
