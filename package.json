@@ -1,15 +1,15 @@
 {
   "name": "first-response-agent-poc",
   "version": "0.0.0",
+  "private": true,
   "description": "A first-response support PoC built with Eve, Next.js, and Better Auth",
   "license": "MIT",
-  "author": "Hugo Richard",
   "repository": {
     "type": "git",
-    "url": "https://github.com/vercel-labs/personal-agent-template"
+    "url": "https://github.com/sc30gsw/first-response-agent-poc.git"
   },
   "bugs": {
-    "url": "https://github.com/vercel-labs/personal-agent-template/issues"
+    "url": "https://github.com/sc30gsw/first-response-agent-poc/issues"
   },
   "engines": {
     "node": ">=24"
@@ -25,16 +25,21 @@
     "dev": "next dev",
     "start": "next start",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "typecheck": "next typegen && tsc --noEmit -p tsconfig.json",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "doctor": "npx react-doctor@latest"
   },
   "dependencies": {
+    "@elysiajs/eden": "1.4.9",
+    "@elysiajs/openapi": "1.4.15",
     "@libsql/client": "^0.17.4",
+    "@tanstack/react-query": "5.101.2",
     "ai": "^7.0.16",
     "better-auth": "^1.6.23",
+    "better-result": "2.9.2",
     "drizzle-orm": "^0.45.2",
+    "elysia": "1.4.29",
     "eve": "^0.20.0",
     "next": "^16.2.6",
     "react": "^19.2.6",
@@ -49,5 +54,11 @@
     "react-doctor": "^0.7.4",
     "typescript": "^6.0.3",
     "vitest": "^4.1.10"
+  },
+  "pnpm": {
+    "overrides": {
+      "@esbuild-kit/core-utils>esbuild": "0.25.12",
+      "next>postcss": "8.5.16"
+    }
   }
 }

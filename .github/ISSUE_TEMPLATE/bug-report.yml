@@ -1,11 +1,11 @@
 name: 🐛 Bug report
-description: Report a bug to help us improve the template.
+description: Report a bug in the PoC.
 labels: [bug]
 body:
   - type: markdown
     attributes:
       value: |
-        Before reporting a bug, please search existing [issues](https://github.com/vercel-labs/personal-agent-template/issues). If the bug was already reported, add your reaction instead of opening a duplicate.
+        Before reporting a bug, please search existing [issues](https://github.com/sc30gsw/first-response-agent-poc/issues). If the bug was already reported, add your reaction instead of opening a duplicate.
   - type: textarea
     id: env
     attributes:

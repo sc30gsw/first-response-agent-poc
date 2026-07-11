@@ -1,6 +1,8 @@
 packages:
   - "."
 
+minimumReleaseAge: 10080
+trustPolicy: no-downgrade
 minimumReleaseAgeExclude:
   - eve
 allowBuilds:
