@@ -1,11 +1,12 @@
 ---
 description: Authentication, secrets, PII, model tools, and validation boundaries
-globs: ["agent/**/*.ts", "app/**/*.{ts,vue}", "server/**/*.ts", "shared/**/*.ts"]
+globs: ["agent/**/*.ts", "app/**/*.{ts,tsx}", "server/**/*.ts", "lib/**/*.ts", "shared/**/*.ts"]
 paths:
   - "agent/**/*.ts"
   - "app/**/*.ts"
-  - "app/**/*.vue"
+  - "app/**/*.tsx"
   - "server/**/*.ts"
+  - "lib/**/*.ts"
   - "shared/**/*.ts"
 alwaysApply: true
 ---
@@ -17,8 +18,8 @@ alwaysApply: true
 ## Secrets and trusted code
 
 - Never hardcode or commit API keys, authentication secrets, or database tokens.
-- Access secrets only in trusted server or Eve runtime code through Nuxt `runtimeConfig` or `process.env` as appropriate.
-- Never expose secrets through `runtimeConfig.public`, client code, logs, prompts, model-visible tool results, dummy data, or documentation examples.
+- Access secrets only in trusted server or Eve runtime code through `process.env`.
+- Never expose secrets through `NEXT_PUBLIC_*` variables, client components, client bundles, logs, prompts, model-visible tool results, dummy data, or documentation examples.
 - Fail clearly when required server configuration is missing without printing the secret.
 
 ## Authentication and authorization

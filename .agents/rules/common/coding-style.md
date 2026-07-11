@@ -1,15 +1,15 @@
 ---
 description: Repository-wide TypeScript, naming, exports, formatting, and comment conventions
-globs: ["**/*.ts", "**/*.vue"]
+globs: ["**/*.ts", "**/*.tsx"]
 paths:
   - "**/*.ts"
-  - "**/*.vue"
+  - "**/*.tsx"
 alwaysApply: true
 ---
 
 # Coding Style
 
-Follow `CODING_GUIDELINE.md`. This repository is a Nuxt application with an embedded Eve agent, so conventions must work across `agent/`, `app/`, `server/`, and `shared/`.
+Follow `CODING_GUIDELINE.md`. This repository is a Next.js App Router application with an embedded Eve agent, so conventions must work across `agent/`, `app/`, `server/`, `lib/`, and `shared/`.
 
 ## TypeScript
 
@@ -25,7 +25,7 @@ Follow `CODING_GUIDELINE.md`. This repository is a Nuxt application with an embe
 | Target | Convention |
 | --- | --- |
 | Variables and functions | `lowerCamelCase` |
-| Types and Vue components | `UpperCamelCase` |
+| Types and React components | `UpperCamelCase` |
 | True constants | `UPPER_SNAKE_CASE` |
 | General files | kebab-case where practical |
 | Eve tool files | snake_case ASCII; the filename is the model-visible tool name |
@@ -35,7 +35,7 @@ Keep one primary responsibility per file. Do not enforce arbitrary line-count li
 ## Functions and exports
 
 - Use named exports for reusable helpers, schemas, constants, and types.
-- Use default exports where Eve or Nuxt expects them, including Eve authored slots and configuration files.
+- Use default exports where Eve or Next.js expects them: Eve authored slots (`agent/agent.ts`, channels, tools), App Router convention files (`page.tsx`, `layout.tsx`, `error.tsx`), and configuration files. Route handlers (`route.ts`) use named `GET`/`POST` exports.
 - Prefer function declarations for top-level exported helpers.
 - Arrow functions are appropriate for inline callbacks, closures, and framework configuration.
 

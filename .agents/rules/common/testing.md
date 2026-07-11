@@ -28,7 +28,7 @@ Do not write a complete horizontal test layer before implementation.
 
 Prefer tests for public domain search, ranking, evidence, safety results, invalid and duplicate dummy data, consultation drafts, anonymous authentication, and authenticated HTTP behavior.
 
-Assert public outcomes. Do not couple tests to internal call counts, Vue component state, or database row layout.
+Assert public outcomes. Do not couple tests to internal call counts, React component state, or database row layout.
 
 Do not add Playwright or nondeterministic LLM-dependent CI tests. After UI changes, perform a manual browser smoke test when the environment is available.
 

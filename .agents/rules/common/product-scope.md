@@ -14,7 +14,7 @@ alwaysApply: true
 - structured case analysis and missing-information extraction
 - deterministic search over dummy JSON cases, guides, and experts
 - evidence display, reanalysis, and consultation-request drafting
-- Nuxt/Vue UI, Eve agent, Better Auth, Drizzle/NuxtHub, Vitest, and Vercel deployment
+- Next.js App Router/React UI, Eve agent, Better Auth, Drizzle/libsql (Turso on Vercel), Vitest, and Vercel deployment
 
 ## Out of scope
 
