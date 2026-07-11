@@ -1,13 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   CASES,
-  CaseRecordSchema,
   DomainDataError,
   EXPERTS,
   GUIDES,
   loadCollection,
-  type CaseCategory,
-} from "#lib/domain";
+} from "#lib/domain/data";
+import { CaseRecordSchema, type CaseCategory } from "@/shared/tools/first-response";
 
 describe("ダミーデータの件数と構成", () => {
   it("事例は12件（3領域×4）", () => {

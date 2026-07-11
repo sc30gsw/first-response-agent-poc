@@ -5,8 +5,8 @@ import {
   searchExperts,
   searchGuides,
   searchSimilarCases,
-  type CaseQuery,
-} from "#lib/domain";
+} from "#lib/domain/search";
+import type { CaseQuery } from "@/shared/tools/first-response";
 
 const inheritanceQuery: CaseQuery = {
   category: "inheritance",

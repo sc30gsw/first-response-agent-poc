@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { PII_NOTICE, buildConsultationDraft } from "#lib/consultation-draft";
-import { EXPERTS, PRIORITY_LABELS } from "#lib/domain";
+import { EXPERTS } from "#lib/domain/data";
+import { PRIORITY_LABELS } from "@/shared/tools/first-response";
 
 const KNOWN_EXPERT = EXPERTS[0];
 
