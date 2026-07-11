@@ -1,0 +1,50 @@
+[
+  {
+    "id": "EXP-001",
+    "name": "佐々木 遥",
+    "department": "不動産相談部",
+    "specialties": ["inheritance"],
+    "relatedCaseCount": 24,
+    "strengths": ["共有持分の整理", "遺産分割協議の進め方", "相続登記の確認"]
+  },
+  {
+    "id": "EXP-002",
+    "name": "田村 一輝",
+    "department": "相続サポート窓口",
+    "specialties": ["inheritance", "non_rebuildable"],
+    "relatedCaseCount": 15,
+    "strengths": ["連絡困難な共有者への対応", "遠方・管理不全物件の整理"]
+  },
+  {
+    "id": "EXP-003",
+    "name": "中村 咲",
+    "department": "不動産相談部",
+    "specialties": ["stigmatized"],
+    "relatedCaseCount": 20,
+    "strengths": ["告知事項の整理", "心理的瑕疵の説明範囲の確認"]
+  },
+  {
+    "id": "EXP-004",
+    "name": "大場 直樹",
+    "department": "調査・確認チーム",
+    "specialties": ["stigmatized"],
+    "relatedCaseCount": 12,
+    "strengths": ["売却時の説明事項の洗い出し", "賃貸時の告知の整理"]
+  },
+  {
+    "id": "EXP-005",
+    "name": "小林 拓真",
+    "department": "調査・確認チーム",
+    "specialties": ["non_rebuildable"],
+    "relatedCaseCount": 18,
+    "strengths": ["接道状況の確認", "再建築可否の確認手順"]
+  },
+  {
+    "id": "EXP-006",
+    "name": "森野 千尋",
+    "department": "不動産相談部",
+    "specialties": ["non_rebuildable"],
+    "relatedCaseCount": 9,
+    "strengths": ["老朽空き家の安全確認", "解体・活用の検討材料の整理"]
+  }
+]
