@@ -4,7 +4,7 @@ import { CaseQueryInputSchema } from "#lib/tool-schemas";
 
 export default defineTool({
   description:
-    "架空の過去事例から類似事例を決定的に検索する（上位3件・同点は事例ID昇順）。順位とスコアはこのツールが確定するため変更してはならない。hasSufficientEvidence が false の場合は「十分な根拠なし」と伝える。",
+    "Deterministically search fictional past cases for similar cases. Return at most three candidates and break ties by ascending case ID. Do not alter this tool's ranking or scores. When hasSufficientEvidence is false, state 「十分な根拠なし」 in Japanese.",
   inputSchema: CaseQueryInputSchema,
   outputSchema: SimilarCaseSearchResultSchema,
   execute(input) {

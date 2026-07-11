@@ -4,7 +4,7 @@ import { CaseQueryInputSchema } from "#lib/tool-schemas";
 
 export default defineTool({
   description:
-    "架空の社内初動ガイドを決定的に検索する（上位2件・同点はガイドID昇順）。順位とスコアはこのツールが確定するため変更してはならない。hasSufficientEvidence が false の場合は「十分な根拠なし」と伝える。",
+    "Deterministically search fictional internal initial-response guides. Return at most two candidates and break ties by ascending guide ID. Do not alter this tool's ranking or scores. When hasSufficientEvidence is false, state 「十分な根拠なし」 in Japanese.",
   inputSchema: CaseQueryInputSchema,
   outputSchema: GuideSearchResultSchema,
   execute(input) {

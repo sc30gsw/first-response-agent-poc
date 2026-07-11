@@ -5,29 +5,29 @@ import { ConsultationDraftSchema, buildConsultationDraft } from "#lib/consultati
 
 export default defineTool({
   description:
-    "選択された有識者への社内向け相談依頼文の下書きを生成する。実際のメール・チャット送信は行わず、コピー可能な下書きだけを返す。expertId は analyze_case / search_experts が返した候補の社員IDのみ指定できる。",
+    "Create a Japanese internal consultation-request draft for the selected expert. Return a copyable draft only; never send email or chat messages. expertId must be an employee ID returned by analyze_case or search_experts.",
   inputSchema: z.object({
     expertId: z
       .string()
       .min(1)
-      .describe("analyze_case または search_experts が返した有識者候補の社員ID"),
+      .describe("The employee ID of an expert returned by analyze_case or search_experts."),
     caseOverview: z
       .string()
       .min(1)
-      .describe("案件概要の要約。個人情報（実在の氏名・住所・連絡先）を含めない"),
+      .describe("A Japanese summary of the case. Do not include actual names, addresses, or contact details."),
     consultationPoints: z
       .array(z.string().min(1))
       .min(1)
-      .describe("確認してほしい論点"),
-    priorityLevel: PriorityLevelSchema.describe("analyze_case が返した優先度レベル"),
+      .describe("Points to be confirmed. Write each item in Japanese."),
+    priorityLevel: PriorityLevelSchema.describe("The priority level returned by analyze_case."),
     referencedCaseIds: z
       .array(z.string())
       .default([])
-      .describe("参照した事例ID。ツールが返したIDのみ指定できる"),
+      .describe("Referenced case IDs. Use only IDs returned by the tools."),
     referencedGuideIds: z
       .array(z.string())
       .default([])
-      .describe("参照したガイドID。ツールが返したIDのみ指定できる"),
+      .describe("Referenced guide IDs. Use only IDs returned by the tools."),
   }),
   outputSchema: z.discriminatedUnion("ok", [
     z.object({ ok: z.literal(true), draft: ConsultationDraftSchema }),

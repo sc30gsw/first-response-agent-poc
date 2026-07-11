@@ -11,36 +11,36 @@ import { CaseQueryInputSchema } from "#lib/tool-schemas";
 
 export default defineTool({
   description:
-    "構造化抽出した案件情報から初動レポートを作成する。優先度・類似事例・社内初動ガイド・有識者候補はこのツールが決定的に確定して返す。順位・スコア・根拠を変更してはならない。新しい相談の初回分析と、追加情報を反映した再分析の両方で使う。",
+    "Create an initial-response report from structured case information. This tool deterministically returns priority, similar cases, internal guides, and expert candidates. Do not alter its ranking, scores, or evidence. Use it for both a new inquiry's initial analysis and a reanalysis after additional information.",
   inputSchema: z.object({
     analysisType: z
       .enum(["initial", "reanalysis"])
-      .describe("初回分析は initial、追加情報を反映した再分析は reanalysis"),
+      .describe("Use initial for a first analysis and reanalysis after incorporating additional information."),
     ...CaseQueryInputSchema.shape,
     stakeholders: z
       .array(z.string())
       .default([])
-      .describe("関係者（例: 相続人3名、入居者。個人が特定できる情報は含めない）"),
-    customerWish: z.string().min(1).describe("顧客の希望。読み取れない場合は「不明」"),
-    currentProblem: z.string().min(1).describe("現在の問題。読み取れない場合は「不明」"),
-    unknowns: z.array(z.string()).default([]).describe("入力から読み取れない不明点"),
+      .describe("Relevant people, such as three heirs or a tenant. Do not include personally identifiable information."),
+    customerWish: z.string().min(1).describe("The customer's goal. Write in Japanese and use 「不明」 when it is not stated."),
+    currentProblem: z.string().min(1).describe("The current problem. Write in Japanese and use 「不明」 when it is not stated."),
+    unknowns: z.array(z.string()).default([]).describe("Important facts missing from the input. Write each item in Japanese."),
     missingInfo: z
       .array(z.string())
       .max(5)
       .default([])
-      .describe("入力から判断できない重要事項（最大5件）"),
+      .describe("Important facts that cannot be determined from the input, up to five items. Write each item in Japanese."),
     actionItems: z
       .array(z.string())
       .max(7)
       .default([])
       .describe(
-        "優先順位付きの初動確認事項（最大7件）。事実確認と相談先の整理に限定し、法的結論や手続判断を書かない",
+        "Prioritized initial checks, up to seven items. Limit them to fact-finding and identifying consultation paths; do not state legal conclusions or procedural decisions. Write each item in Japanese.",
       ),
     humanEscalation: z
       .array(z.string())
       .default([])
-      .describe("人間または専門家へ確認すべき事項（法務・税務・査定・契約に関わる論点は必ず含める）"),
-    followUpQuestion: z.string().min(1).describe("次に利用者へ確認する質問（1つ）"),
+      .describe("Items requiring a human or specialist to confirm. Include legal, tax, appraisal, and contract-related issues. Write each item in Japanese."),
+    followUpQuestion: z.string().min(1).describe("One next question for the user. Write it in Japanese."),
   }),
   outputSchema: z.object({
     analysisType: z.enum(["initial", "reanalysis"]),

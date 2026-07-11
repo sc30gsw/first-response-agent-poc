@@ -1,31 +1,31 @@
 import { z } from "zod";
 import { CaseCategorySchema } from "#lib/domain";
 
-// 検索系ツール共通の入力スキーマ（ドメイン層 CaseQuery と同形。モデル向けの説明付き）
+// Shared input schema for search tools. It matches the domain-layer CaseQuery and includes model-facing descriptions.
 export const CaseQueryInputSchema = z.object({
   category: CaseCategorySchema.nullable()
     .default(null)
     .describe(
-      "案件カテゴリ。inheritance=相続・共有名義 / stigmatized=事故・告知事項 / non_rebuildable=再建築不可・老朽化。判定できない場合は null",
+      "Case category: inheritance for inheritance or co-ownership, stigmatized for incidents or disclosure matters, and non_rebuildable for non-rebuildable or aging properties. Use null when it cannot be determined.",
     ),
   tags: z
     .array(z.string())
     .default([])
     .describe(
-      "相談内容に該当するタグ。initial-triage スキルの語彙表と完全一致で照合される。安全・緊急に関わる記載は相談文の表現のまま追加してよい",
+      "Tags that apply to the inquiry. Match the initial-triage vocabulary exactly. You may add the inquiry's original wording for safety or urgency signals.",
     ),
   keyIssues: z
     .array(z.string())
     .default([])
-    .describe("主な論点。initial-triage スキルの語彙表から選ぶ"),
+    .describe("Key issues. Select values from the initial-triage vocabulary."),
   propertyState: z
     .array(z.string())
     .default([])
-    .describe("物件状態。initial-triage スキルの語彙表から選ぶ"),
+    .describe("Property state. Select values from the initial-triage vocabulary."),
   rights: z
     .array(z.string())
     .default([])
-    .describe("権利関係。initial-triage スキルの語彙表から選ぶ"),
+    .describe("Rights and ownership status. Select values from the initial-triage vocabulary."),
 });
 
 export type CaseQueryInput = z.infer<typeof CaseQueryInputSchema>;
