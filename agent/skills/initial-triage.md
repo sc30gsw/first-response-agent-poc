@@ -1,73 +1,73 @@
 ---
-description: 複雑な不動産相談（相続・共有名義、事故・告知事項、再建築不可・老朽化など）の初動分析・再分析・相談依頼文の作成を行う手順書。新しい案件相談を受けたら必ず最初に読み込む。
+description: Procedure for initial analysis, reanalysis, and consultation-draft creation for complex real-estate inquiries. Always load this skill first when handling a new case inquiry.
 ---
 
-# 初動整理手順
+# Initial Triage Procedure
 
-## 手順1: 相談内容の構造化抽出
+## Step 1: Extract a Structured Case Summary
 
-相談文から次を抽出する。推測で補わず、読み取れない項目は不明として扱う。
+Extract the following details from the inquiry. Do not infer missing facts; mark unreadable details as unknown.
 
-- 案件カテゴリ（category）: 次の3種類。判定できない場合は null
+- Case category (`category`): use one of the three values below, or `null` when it cannot be determined.
   - `inheritance` = 相続・共有名義
   - `stigmatized` = 事故・告知事項
   - `non_rebuildable` = 再建築不可・老朽化
-- 物件状態（propertyState）・権利関係（rights）・関係者（stakeholders）
-- 顧客の希望（customerWish）・現在の問題（currentProblem）・不明点（unknowns）
-- 検索用のタグ（tags）と主な論点（keyIssues）
+- Property state (`propertyState`), rights (`rights`), and stakeholders (`stakeholders`)
+- Customer wish (`customerWish`), current problem (`currentProblem`), and unknowns (`unknowns`)
+- Search tags (`tags`) and key issues (`keyIssues`)
 
-### 検索語彙表（重要）
+### Search Vocabulary (Important)
 
-tags / keyIssues / propertyState / rights はダミーデータと **完全一致** で照合される。
-言い換えや創作をせず、相談内容に該当する語だけを次の語彙表から選ぶ。
+`tags`, `keyIssues`, `propertyState`, and `rights` are matched by **exact value** against the dummy data. Do not paraphrase or invent values. Select only the values that apply to the inquiry from the lists below.
 
 - **tags**: 事実確認 / 入居者対応 / 共有持分 / 再建築不可 / 単独名義 / 告知事項 / 売却 / 安全確認 / 建て替え / 心理的瑕疵 / 意見相違 / 接道 / 旗竿地 / 活用検討 / 相続 / 相続登記 / 破損 / 空き家 / 管理不全 / 老朽化 / 賃貸 / 購入検討 / 連絡不通 / 遠方物件 / 遺産分割
 - **keyIssues**: 事実確認 / 入居者対応 / 共有者の同意 / 再建築可否の確認 / 告知の要否 / 売却時の説明 / 安全面の確認 / 対応方針の整理 / 心理的瑕疵の整理 / 必要書類の確認 / 接道状況の確認 / 放置の解消 / 方針の合意形成 / 方針の整理 / 活用方法の検討 / 相続登記 / 管理者の不在 / 解体費用の確認 / 調査範囲の整理 / 賃貸時の説明 / 購入判断の材料整理 / 近隣への影響の確認 / 連絡が取れない共有者 / 遺産分割協議
 - **propertyState**: 一部破損 / 一部空室 / 傾き / 室内は現状のまま / 居住中 / 残置物あり / 空き家 / 空室 / 管理不全 / 老朽化 / 賃貸中
 - **rights**: 共有 / 単独取得見込み / 単独所有 / 未登記相続 / 相続による取得 / 購入検討
 
-### 安全・緊急シグナル
+### Safety and Urgency Signals
 
-倒壊・崩落・火災・浸水・漏電・ガス漏れ・傾き・破損・侵入・不審者などの安全に関わる記載、
-期限・相続放棄・連絡が取れない・訴訟・滞納・差押などの緊急性に関わる記載が相談文にある場合は、
-語彙表に無くても相談文の表現のまま tags へ追加してよい（優先度判定はツールが決定的に行う）。
+When the inquiry mentions safety-related conditions such as collapse, fire, flooding, electrical leakage, gas leakage, leaning, damage, intrusion, or suspicious persons, add the original wording to `tags` even when it is not in the vocabulary.
 
-## 手順2: analyze_case の実行
+Do the same for urgency-related conditions such as deadlines, inheritance renunciation, unreachable parties, litigation, delinquency, or seizure. The tool, not the model, determines the final priority.
 
-抽出結果を引数にして analyze_case を1回呼ぶ。あわせて次を自分で作成して渡す。
+## Step 2: Call `analyze_case`
 
-- missingInfo: 入力から判断できない重要事項（最大5件）
-- actionItems: 優先順位付きの初動確認事項（最大7件）。**事実確認と相談先の整理に限定**し、法的結論や具体的な手続判断を書かない
-- humanEscalation: 人間または専門家へ確認すべき事項（法務・税務・査定・契約に関わる論点は必ずここへ入れる）
-- followUpQuestion: 次に利用者へ確認する質問（1つ）
+Call `analyze_case` once with the extracted information. Prepare the following fields yourself.
 
-優先度・類似事例・社内ガイド・有識者候補はツールが決定的に確定して返す。
+- `missingInfo`: Important facts that cannot be determined from the input, up to five items
+- `actionItems`: Prioritized initial checks, up to seven items. Limit these to fact-finding and identifying consultation paths; do not state legal conclusions or procedural decisions.
+- `humanEscalation`: Items that require a human or specialist to confirm. Include legal, tax, appraisal, and contract-related issues here.
+- `followUpQuestion`: One question to ask the user next
 
-## 手順3: 応答（カード構造）
+The tool deterministically returns priority, similar cases, internal guides, and expert candidates.
 
-analyze_case の結果はUI側で「初回分析」「再分析」の構造化カードとして描画される。
-通常メッセージには次の2点だけを書き、分析の中身（要約・確認事項・候補一覧）を複製しない。
+## Step 3: Respond with Cards
 
-1. 1〜3文の短い補足説明（最終判断は担当者または専門家が行う旨を含める）
-2. 次に利用者へ確認する質問（followUpQuestion と同じ趣旨）
+The UI renders the `analyze_case` result in structured cards labelled 「初回分析」 or 「再分析」. Do not duplicate the summary, checks, or candidate lists in the ordinary response.
 
-## 手順4: 再分析
+Write only the following in Japanese:
 
-利用者が追加情報を回答したら、これまでの抽出結果に新情報を統合し、
-analyze_case を analysisType: "reanalysis" で再実行する。
-補足説明では「解消した不明点」と「新たに判明した事項」を短く明示する。
+1. A short one- to three-sentence explanation that states the final decision belongs to the responsible staff member or an appropriate specialist.
+2. The next user question, matching the intent of `followUpQuestion`.
 
-## 手順5: 個別検索
+## Step 4: Reanalyze
 
-利用者が「他の類似事例は」「ガイドだけ見たい」「別の相談先は」のように個別の候補を求めた場合は、
-search_similar_cases / search_guides / search_experts を単独で使う。
-結果が hasSufficientEvidence: false のときは「十分な根拠なし」と明示する。
+When the user provides additional information, merge it with the previous extraction and call `analyze_case` again with `analysisType: "reanalysis"`.
 
-## 手順6: 相談依頼文の作成
+In the Japanese supporting text, briefly state which unknowns were resolved and which new facts were found.
 
-利用者が有識者を選んだら、draft_consultation_request を呼ぶ。
+## Step 5: Run a Focused Search
 
-- expertId は analyze_case / search_experts が返した候補の社員IDだけを指定する
-- referencedCaseIds / referencedGuideIds はツールが返した事例ID・ガイドIDだけを指定する
-- caseOverview と consultationPoints に個人情報（実在の氏名・住所・連絡先）を含めない
-- 生成されるのはコピー用の下書きのみで、実際の送信は行わないことを利用者へ伝える
+When the user asks for specific candidates, such as additional similar cases, only guides, or alternative consultation contacts, call one of `search_similar_cases`, `search_guides`, or `search_experts`.
+
+When `hasSufficientEvidence` is `false`, clearly state 「十分な根拠なし」 in Japanese.
+
+## Step 6: Create a Consultation Draft
+
+When the user selects an expert, call `draft_consultation_request`.
+
+- Set `expertId` only to an employee ID returned by `analyze_case` or `search_experts`.
+- Set `referencedCaseIds` and `referencedGuideIds` only to IDs returned by the tools.
+- Do not include actual names, addresses, or contact details in `caseOverview` or `consultationPoints`.
+- Tell the user in Japanese that the result is a copyable draft only and is not sent automatically.
