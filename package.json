@@ -46,7 +46,6 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "drizzle-kit": "^0.31.10",
-    "microsandbox": "^0.6.5",
     "react-doctor": "^0.7.4",
     "typescript": "^6.0.3",
     "vitest": "^4.1.10"
