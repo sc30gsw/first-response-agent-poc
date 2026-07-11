@@ -1,5 +1,6 @@
 import { defineTool } from "eve/tools";
-import { ExpertSearchResultSchema, parseCaseQuery, searchExperts } from "#lib/domain";
+import { parseCaseQuery, searchExperts } from "#lib/domain/search";
+import { ExpertSearchResultSchema } from "@/shared/tools/first-response";
 import { CaseQueryInputSchema } from "#lib/tool-schemas";
 
 export default defineTool({

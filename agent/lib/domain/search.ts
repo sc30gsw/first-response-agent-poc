@@ -13,7 +13,7 @@ import {
   type MatchReason,
   type PriorityAssessment,
   type SimilarCaseSearchResult,
-} from "#lib/domain/types";
+} from "@/shared/tools/first-response";
 
 // スコア重み（LLMではなくコードで順位を確定する：REQUIREMENT §7.9/§11.1）
 export const CATEGORY_WEIGHT = 5;
@@ -56,7 +56,7 @@ const SAFETY_KEYWORDS = [
   "侵入",
   "不審者",
   "不法侵入",
-];
+] as const satisfies readonly string[];
 
 // 早期の担当者確認が望ましいキーワード（REQUIREMENT §7.6）
 const URGENCY_KEYWORDS = [
@@ -76,7 +76,7 @@ const URGENCY_KEYWORDS = [
   "差押",
   "立ち退き",
   "退去",
-];
+] as const satisfies readonly string[];
 
 function unique(items: string[]): string[] {
   return [...new Set(items)];
@@ -101,7 +101,7 @@ function totalScore(reasons: MatchReason[]): number {
   return reasons.reduce((sum, reason) => sum + reason.points, 0);
 }
 
-function matchKeywords(tokens: string[], keywords: string[]): string[] {
+function matchKeywords(tokens: readonly string[], keywords: readonly string[]): string[] {
   const matched = new Set<string>();
   for (const keyword of keywords) {
     if (tokens.some((token) => token.includes(keyword))) {
@@ -116,10 +116,9 @@ export function parseCaseQuery(raw: unknown): CaseQuery {
   return CaseQuerySchema.parse(raw);
 }
 
-// 優先度は決定的なキーワード判定で確定する
+// 優先度は決定的なキーワード判定で確定する（検証は境界の parseCaseQuery で一度だけ行う）
 export function assessPriority(query: CaseQuery): PriorityAssessment {
-  const q = CaseQuerySchema.parse(query);
-  const tokens = [...q.tags, ...q.keyIssues, ...q.propertyState, ...q.rights];
+  const tokens = [...query.tags, ...query.keyIssues, ...query.propertyState, ...query.rights];
 
   const safety = matchKeywords(tokens, SAFETY_KEYWORDS);
   if (safety.length > 0) {
@@ -131,7 +130,7 @@ export function assessPriority(query: CaseQuery): PriorityAssessment {
     return { level: "early_check", reasons: urgency };
   }
 
-  const hasSubstance = q.category !== null || tokens.length > 0;
+  const hasSubstance = query.category !== null || tokens.length > 0;
   if (!hasSubstance) {
     return { level: "needs_review", reasons: ["優先度を判断できる情報が不足しています"] };
   }
@@ -182,13 +181,12 @@ export function searchSimilarCases(
   query: CaseQuery,
   cases: CaseRecord[] = CASES,
 ): SimilarCaseSearchResult {
-  const q = CaseQuerySchema.parse(query);
   const matches = cases
-    .map((record) => {
-      const reasons = scoreCase(q, record);
-      return { case: record, score: totalScore(reasons), reasons };
+    .flatMap((record) => {
+      const reasons = scoreCase(query, record);
+      const score = totalScore(reasons);
+      return score >= SIMILAR_CASE_MIN_SCORE ? [{ case: record, score, reasons }] : [];
     })
-    .filter((match) => match.score >= SIMILAR_CASE_MIN_SCORE)
     .sort((a, b) => b.score - a.score || compareId(a.case.id, b.case.id))
     .slice(0, SIMILAR_CASE_LIMIT);
 
@@ -217,13 +215,12 @@ function scoreGuide(query: CaseQuery, guide: Guide): MatchReason[] {
 
 // 社内初動ガイドを決定的に順位付けする（同点はガイドID昇順）
 export function searchGuides(query: CaseQuery, guides: Guide[] = GUIDES): GuideSearchResult {
-  const q = CaseQuerySchema.parse(query);
   const matches = guides
-    .map((guide) => {
-      const reasons = scoreGuide(q, guide);
-      return { guide, score: totalScore(reasons), reasons };
+    .flatMap((guide) => {
+      const reasons = scoreGuide(query, guide);
+      const score = totalScore(reasons);
+      return score >= GUIDE_MIN_SCORE ? [{ guide, score, reasons }] : [];
     })
-    .filter((match) => match.score >= GUIDE_MIN_SCORE)
     .sort((a, b) => b.score - a.score || compareId(a.guide.id, b.guide.id))
     .slice(0, GUIDE_LIMIT);
 
@@ -264,18 +261,22 @@ function buildRecommendation(expert: Expert, reasons: MatchReason[]): string {
 
 // 有識者候補を決定的に順位付けする（スコア→関連案件数→社員ID昇順）
 export function searchExperts(query: CaseQuery, experts: Expert[] = EXPERTS): ExpertSearchResult {
-  const q = CaseQuerySchema.parse(query);
   const matches: ExpertMatch[] = experts
-    .map((expert) => {
-      const reasons = scoreExpert(q, expert);
-      return {
-        expert,
-        score: totalScore(reasons),
-        reasons,
-        recommendation: buildRecommendation(expert, reasons),
-      };
+    .flatMap((expert) => {
+      const reasons = scoreExpert(query, expert);
+      const score = totalScore(reasons);
+      if (score < EXPERT_MIN_SCORE) {
+        return [];
+      }
+      return [
+        {
+          expert,
+          score,
+          reasons,
+          recommendation: buildRecommendation(expert, reasons),
+        },
+      ];
     })
-    .filter((match) => match.score >= EXPERT_MIN_SCORE)
     .sort(
       (a, b) =>
         b.score - a.score ||
@@ -289,11 +290,10 @@ export function searchExperts(query: CaseQuery, experts: Expert[] = EXPERTS): Ex
 
 // 決定的な根拠部分（優先度・類似事例・ガイド・有識者）をまとめて返す
 export function buildEvidenceBundle(query: CaseQuery): EvidenceBundle {
-  const q = CaseQuerySchema.parse(query);
   return {
-    priority: assessPriority(q),
-    similarCases: searchSimilarCases(q),
-    guides: searchGuides(q),
-    experts: searchExperts(q),
+    priority: assessPriority(query),
+    similarCases: searchSimilarCases(query),
+    guides: searchGuides(query),
+    experts: searchExperts(query),
   };
 }

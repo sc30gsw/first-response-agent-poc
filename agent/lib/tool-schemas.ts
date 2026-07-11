@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { CaseCategorySchema } from "#lib/domain";
+import { CaseCategorySchema } from "@/shared/tools/first-response";
 
 // Shared input schema for search tools. It matches the domain-layer CaseQuery and includes model-facing descriptions.
 export const CaseQueryInputSchema = z.object({

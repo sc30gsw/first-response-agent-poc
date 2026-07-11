@@ -1,27 +1,14 @@
-import { z } from "zod";
-import { CASES, EXPERTS, GUIDES, PRIORITY_LABELS, PriorityLevelSchema } from "#lib/domain";
-import type { PriorityLevel } from "#lib/domain";
+import { CASES, EXPERTS, GUIDES } from "#lib/domain/data";
+import {
+  ConsultationDraftSchema,
+  PRIORITY_LABELS,
+  type ConsultationDraft,
+  type PriorityLevel,
+} from "@/shared/tools/first-response";
 
 // 相談依頼文の下書きに常に含める個人情報の注意（REQUIREMENT §7.15）
 export const PII_NOTICE =
   "この下書きに実在の氏名・住所・連絡先などの個人情報を記載しないでください。共有前に固有の情報が含まれていないか必ず確認してください。";
-
-export const ConsultationDraftSchema = z.object({
-  recipient: z.object({
-    id: z.string(),
-    name: z.string(),
-    department: z.string(),
-  }),
-  subject: z.string(),
-  body: z.string(),
-  priorityLevel: PriorityLevelSchema,
-  priorityLabel: z.string(),
-  consultationPoints: z.array(z.string()),
-  referencedCaseIds: z.array(z.string()),
-  referencedGuideIds: z.array(z.string()),
-  piiNotice: z.string(),
-});
-export type ConsultationDraft = z.infer<typeof ConsultationDraftSchema>;
 
 export type ConsultationDraftInput = {
   expertId: string;
@@ -87,7 +74,7 @@ export function buildConsultationDraft(input: ConsultationDraftInput) {
     "※ この下書きはAIが整理したものです。内容の最終確認と実際の連絡は担当者が行ってください。",
   ].join("\n");
 
-  const draft: ConsultationDraft = {
+  const draft: ConsultationDraft = ConsultationDraftSchema.parse({
     recipient: {
       id: expert.id,
       name: expert.name,
@@ -101,7 +88,7 @@ export function buildConsultationDraft(input: ConsultationDraftInput) {
     referencedCaseIds,
     referencedGuideIds,
     piiNotice: PII_NOTICE,
-  };
+  });
 
   return { ok: true as const, draft };
 }

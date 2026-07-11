@@ -15,6 +15,13 @@
       "when": 1783769010933,
       "tag": "0001_cooing_pandemic",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1783804423860,
+      "tag": "0002_thick_annihilus",
+      "breakpoints": true
     }
   ]
 }

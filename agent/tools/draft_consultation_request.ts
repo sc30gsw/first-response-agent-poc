@@ -1,7 +1,10 @@
 import { defineTool } from "eve/tools";
 import { z } from "zod";
-import { PriorityLevelSchema } from "#lib/domain";
-import { ConsultationDraftSchema, buildConsultationDraft } from "#lib/consultation-draft";
+import { buildConsultationDraft } from "#lib/consultation-draft";
+import {
+  DraftConsultationOutputSchema,
+  PriorityLevelSchema,
+} from "@/shared/tools/first-response";
 
 export default defineTool({
   description:
@@ -29,10 +32,7 @@ export default defineTool({
       .default([])
       .describe("Referenced guide IDs. Use only IDs returned by the tools."),
   }),
-  outputSchema: z.discriminatedUnion("ok", [
-    z.object({ ok: z.literal(true), draft: ConsultationDraftSchema }),
-    z.object({ ok: z.literal(false), message: z.string() }),
-  ]),
+  outputSchema: DraftConsultationOutputSchema,
   execute(input) {
     return buildConsultationDraft(input);
   },

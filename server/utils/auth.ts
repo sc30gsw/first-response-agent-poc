@@ -10,5 +10,4 @@ export const auth = createAuth({
   baseURL: productionUrl,
   secret: process.env.BETTER_AUTH_SECRET,
   trustedOrigins: productionUrl ? [productionUrl] : undefined,
-  allowEmailPassword: process.env.NODE_ENV === "development",
 });

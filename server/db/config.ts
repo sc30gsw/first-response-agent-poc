@@ -16,7 +16,7 @@ export function resolveDatabaseCredentials(environment: NodeJS.ProcessEnv = proc
   }
 
   if (environment.VERCEL) {
-    throw new Error("TURSO_DATABASE_URL is required on Vercel.");
+    throw new Error("TURSO_DATABASE_URL or TURSO_URL is required on Vercel.");
   }
 
   mkdirSync(".data", { recursive: true });

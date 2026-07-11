@@ -1,7 +1,7 @@
 import { z } from "zod";
-import casesRaw from "../../../data/cases.json";
-import expertsRaw from "../../../data/experts.json";
-import guidesRaw from "../../../data/guides.json";
+import casesRaw from "@/data/cases.json";
+import expertsRaw from "@/data/experts.json";
+import guidesRaw from "@/data/guides.json";
 import {
   CaseRecordSchema,
   ExpertSchema,
@@ -9,7 +9,7 @@ import {
   type CaseRecord,
   type Expert,
   type Guide,
-} from "#lib/domain/types";
+} from "@/shared/tools/first-response";
 
 // ダミーデータの読込・検証で失敗したことを表す（REQUIREMENT §8.4）
 export class DomainDataError extends Error {

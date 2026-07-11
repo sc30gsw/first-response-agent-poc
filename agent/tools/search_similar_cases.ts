@@ -1,5 +1,6 @@
 import { defineTool } from "eve/tools";
-import { SimilarCaseSearchResultSchema, parseCaseQuery, searchSimilarCases } from "#lib/domain";
+import { parseCaseQuery, searchSimilarCases } from "#lib/domain/search";
+import { SimilarCaseSearchResultSchema } from "@/shared/tools/first-response";
 import { CaseQueryInputSchema } from "#lib/tool-schemas";
 
 export default defineTool({

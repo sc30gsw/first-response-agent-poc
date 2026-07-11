@@ -4,6 +4,7 @@ import { anonymous } from "better-auth/plugins";
 import { eq } from "drizzle-orm";
 import type { LibSQLDatabase } from "drizzle-orm/libsql";
 import { threads } from "../db/schema/threads";
+import { revokeEveSessionsForUser } from "./eve-sessions";
 
 /** Anonymous session lifetime in seconds. */
 const SESSION_TTL_SECONDS = 60 * 60 * 24;
@@ -44,7 +45,7 @@ export function createAuth<TSchema extends Record<string, unknown>>(
     rateLimit: {
       // Better Auth enables this only in production by default, so enable it explicitly.
       enabled: true,
-      storage: "memory",
+      storage: "database",
     },
     databaseHooks: {
       user: {
@@ -52,6 +53,7 @@ export function createAuth<TSchema extends Record<string, unknown>>(
           before: async (user) => {
             // Delete related threads even when a local SQLite connection does not enforce FKs.
             await db.delete(threads).where(eq(threads.userId, user.id));
+            await revokeEveSessionsForUser(user.id, db);
           },
         },
       },

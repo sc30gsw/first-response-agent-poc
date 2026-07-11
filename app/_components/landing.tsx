@@ -1,26 +1,27 @@
 "use client";
 
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
-import { authClient } from "@/lib/auth-client";
+import { anonymousAuth } from "@/lib/auth-client";
+import { authQueryKeys } from "@/lib/query-keys";
 import { BrandMark } from "./brand-mark";
 
 export function Landing() {
   const router = useRouter();
-  const [error, setError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const queryClient = useQueryClient();
+  const startDemoMutation = useMutation({
+    mutationKey: ["auth", "anonymous-sign-in"],
+    mutationFn: anonymousAuth.signInAnonymous,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: authQueryKeys.all });
+      router.refresh();
+    },
+    retry: false,
+    scope: { id: "auth-session" },
+  });
 
   function startDemo() {
-    setError(null);
-    startTransition(async () => {
-      const result = await authClient.signIn.anonymous();
-      if (result.error) {
-        setError("デモを開始できませんでした。時間をおいて再度お試しください。");
-        return;
-      }
-
-      router.refresh();
-    });
+    startDemoMutation.mutate();
   }
 
   return (
@@ -36,7 +37,7 @@ export function Landing() {
 
       <section className="landing-grid" aria-labelledby="page-title">
         <div className="landing-copy">
-          <p className="eyebrow">COMPLEX CASE INTAKE</p>
+          <p className="eyebrow">複雑案件の初動受付</p>
           <h1 id="page-title">
             複雑な相談の初動を、
             <span>一枚の見取り図に。</span>
@@ -50,24 +51,26 @@ export function Landing() {
               id="demo-start"
               className="primary-button primary-button--large"
               type="button"
-              disabled={isPending}
+              disabled={startDemoMutation.isPending}
               onClick={startDemo}
             >
-              {isPending ? "匿名セッションを作成中…" : "デモを開始"}
+              {startDemoMutation.isPending ? "匿名セッションを作成中…" : "デモを開始"}
               <span aria-hidden="true">→</span>
             </button>
             <p>アカウント登録は不要です。匿名セッションは24時間で失効します。</p>
           </div>
 
-          {error ? <p className="form-error" role="alert">{error}</p> : null}
+          {startDemoMutation.isError ? (
+            <p className="form-error" role="alert">デモを開始できませんでした。時間をおいて再度お試しください。</p>
+          ) : null}
         </div>
 
         <aside className="intake-sheet" aria-label="デモで確認できる内容">
           <div className="sheet-header">
             <span>初動整理票</span>
-            <span>DEMO</span>
+            <span>デモ</span>
           </div>
-          <ol className="sheet-list">
+          <ol className="sheet-list" role="list">
             <li><span>01</span>案件要約と優先度</li>
             <li><span>02</span>不足情報と初動確認事項</li>
             <li><span>03</span>類似事例と社内ガイド</li>

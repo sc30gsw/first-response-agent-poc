@@ -55,7 +55,11 @@ Write only the following in Japanese:
 
 When the user provides additional information, merge it with the previous extraction and call `analyze_case` again with `analysisType: "reanalysis"`.
 
-In the Japanese supporting text, briefly state which unknowns were resolved and which new facts were found.
+- Set `resolvedUnknowns` to the previously unknown items that the additional information resolved.
+- Set `newFacts` to facts learned from the additional information that were not present in the previous analysis.
+- Use an empty array when there are no items in either category. Do not invent changes.
+
+The UI renders both arrays as a structured comparison card. In the Japanese supporting text, only ask the next question; do not duplicate the comparison card.
 
 ## Step 5: Run a Focused Search
 

@@ -1,5 +1,6 @@
 import { defineTool } from "eve/tools";
-import { GuideSearchResultSchema, parseCaseQuery, searchGuides } from "#lib/domain";
+import { parseCaseQuery, searchGuides } from "#lib/domain/search";
+import { GuideSearchResultSchema } from "@/shared/tools/first-response";
 import { CaseQueryInputSchema } from "#lib/tool-schemas";
 
 export default defineTool({
