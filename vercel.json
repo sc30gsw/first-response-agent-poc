@@ -3,7 +3,7 @@
   "experimentalServices": {
     "web": {
       "entrypoint": ".",
-      "framework": "nuxtjs",
+      "framework": "nextjs",
       "routePrefix": "/"
     },
     "eve": {

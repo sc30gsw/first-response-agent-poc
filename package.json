@@ -1,7 +1,7 @@
 {
-  "name": "personal-agent-template",
+  "name": "first-response-agent-poc",
   "version": "0.0.0",
-  "description": "A durable personal AI assistant template built with Eve, Nuxt 4, and Better Auth",
+  "description": "A first-response support PoC built with Eve, Next.js, and Better Auth",
   "license": "MIT",
   "author": "Hugo Richard",
   "repository": {
@@ -20,47 +20,35 @@
     "#*": "./agent/*"
   },
   "scripts": {
-    "build": "nuxt build",
-    "dev": "nuxt dev",
-    "start": "nuxt preview",
+    "build": "pnpm build:eve && next build",
+    "build:eve": "eve build",
+    "dev": "next dev",
+    "start": "next start",
     "test": "vitest run",
-    "typecheck": "nuxt typecheck",
-    "db:generate": "nuxt db generate",
-    "db:migrate": "nuxt db migrate",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
     "doctor": "npx react-doctor@latest"
   },
   "dependencies": {
-    "@comark/nuxt": "^0.5.0",
-    "@github-tools/sdk": "^1.7.0",
     "@libsql/client": "^0.17.4",
-    "@nuxt/ui": "^4.9.0",
-    "@nuxthub/core": "^0.10.7",
-    "@shikijs/langs": "^4.3.1",
-    "@vercel/analytics": "^2.0.1",
-    "@vercel/connect": "0.3.2",
     "ai": "^7.0.16",
     "better-auth": "^1.6.23",
-    "better-result": "^2.9.2",
-    "chat": "^4.32.0",
-    "chat-adapter-sendblue": "^0.2.0",
-    "drizzle-kit": "^0.31.10",
     "drizzle-orm": "^0.45.2",
     "eve": "^0.20.0",
-    "maska": "^3.2.0",
-    "nuxt": "^4.4.8",
-    "shiki": "^4.3.1",
-    "tailwindcss": "^4.3.2",
-    "vue": "^3.5.39",
+    "next": "^16.2.6",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
     "zod": "4.4.3"
   },
   "devDependencies": {
-    "@iconify-json/lucide": "^1.2.116",
-    "@iconify-json/simple-icons": "^1.2.89",
     "@types/node": "26.1.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "drizzle-kit": "^0.31.10",
     "microsandbox": "^0.6.5",
     "react-doctor": "^0.7.4",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.10",
-    "vue-tsc": "^3.3.6"
+    "vitest": "^4.1.10"
   }
 }

@@ -5,7 +5,7 @@ import type {
   ExpertSearchResult,
   GuideSearchResult,
   SimilarCaseSearchResult,
-} from "~~/shared/tools/first-response";
+} from "@/shared/tools/first-response";
 
 export type AnalyzeCaseUIToolInvocation = DynamicToolUIPart & {
   output: AnalyzeCaseOutput;

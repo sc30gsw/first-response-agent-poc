@@ -1,7 +1,7 @@
 import { z } from "zod";
-import casesRaw from "#lib/domain/data/cases.json";
-import expertsRaw from "#lib/domain/data/experts.json";
-import guidesRaw from "#lib/domain/data/guides.json";
+import casesRaw from "../../../data/cases.json";
+import expertsRaw from "../../../data/experts.json";
+import guidesRaw from "../../../data/guides.json";
 import {
   CaseRecordSchema,
   ExpertSchema,

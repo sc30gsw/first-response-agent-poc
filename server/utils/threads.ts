@@ -1,6 +1,6 @@
 import { and, desc, eq } from "drizzle-orm";
-import type { ThreadRecord, ThreadState, ThreadSummary } from "#shared/types/thread";
-import { truncateThreadTitle } from "#shared/types/thread";
+import type { ThreadRecord, ThreadState, ThreadSummary } from "@/shared/types/thread";
+import { truncateThreadTitle } from "@/shared/types/thread";
 import { db } from "../db/client";
 import { threads } from "../db/schema/threads";
 

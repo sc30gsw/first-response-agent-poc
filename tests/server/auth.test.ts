@@ -4,19 +4,11 @@ import { drizzle } from "drizzle-orm/libsql";
 import { migrate } from "drizzle-orm/libsql/migrator";
 import { describe, expect, it } from "vitest";
 import * as authSchema from "../../server/db/schema/auth";
-import * as memorySchema from "../../server/db/schema/memory";
-import * as phoneSchema from "../../server/db/schema/phone";
-import * as profileSchema from "../../server/db/schema/profile";
-import * as slackSchema from "../../server/db/schema/slack";
 import * as threadsSchema from "../../server/db/schema/threads";
 import { createAuth } from "../../server/utils/create-auth";
 
 const schema = {
   ...authSchema,
-  ...memorySchema,
-  ...phoneSchema,
-  ...profileSchema,
-  ...slackSchema,
   ...threadsSchema,
 };
 
