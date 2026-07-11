@@ -1,68 +1,41 @@
 ---
-description: eve evals — defineEval, the t driver/assertion surfaces, gate vs soft, eve eval
-globs: ["evals/**/*.eval.ts", "evals/**/*.ts"]
+description: Vitest TDD boundaries and the repository quality gate
+globs: ["tests/**/*.test.ts", "agent/**/*.ts", "server/**/*.ts", "shared/**/*.ts"]
+paths:
+  - "tests/**/*.test.ts"
+  - "agent/**/*.ts"
+  - "server/**/*.ts"
+  - "shared/**/*.ts"
 alwaysApply: true
 ---
 
-# Testing (eve evals)
+# Testing
 
-> Full guidance is in [CODING_GUIDELINE.md](/CODING_GUIDELINE.md) §評価（evals）. Authoring reference: `node_modules/eve/docs/evals/`.
+This repository uses deterministic Vitest tests under `tests/**/*.test.ts`. It does not use Eve evals as its required test suite.
 
-This is a backend agent app. There is **no** Vitest, no React Testing Library, no DOM queries. Behavior is verified with **eve evals**: scored checks that drive the agent over the real HTTP surface and grade what comes back.
+## TDD workflow
 
-## Placement
+For new behavior, work in vertical slices:
 
-Evals live under `evals/` (a sibling of `agent/`), in `*.eval.ts` files. The path is the eval's identity — no `id`/`name` field. Each `evals/` tree needs exactly one `evals.config.ts`.
+1. Add a failing test at an agreed public boundary.
+2. Implement the smallest behavior that passes.
+3. Refactor while keeping the suite green.
+4. Move to the next observable behavior.
 
-```
-evals/
-├── evals.config.ts
-├── smoke.eval.ts
-└── weather/
-    └── brooklyn-forecast.eval.ts   # id: weather/brooklyn-forecast
-```
+Do not write a complete horizontal test layer before implementation.
 
-## `defineEval`
+## Test boundaries
 
-An eval is a single `async test(t)`. Drive the agent with `t` and assert on the run with the same `t`:
+Prefer tests for public domain search, ranking, evidence, safety results, invalid and duplicate dummy data, consultation drafts, anonymous authentication, and authenticated HTTP behavior.
 
-```typescript
-import { defineEval } from "eve/evals";
-import { includes } from "eve/evals/expect";
+Assert public outcomes. Do not couple tests to internal call counts, Vue component state, or database row layout.
 
-export default defineEval({
-  description: "Weather agent answers and uses the right tool.",
-  async test(t) {
-    await t.send("What is the weather in Brooklyn?");
-    t.completed();
-    t.calledTool("get_weather");
-    t.check(t.reply, includes("Sunny"));
-  },
-});
-```
+Do not add Playwright or nondeterministic LLM-dependent CI tests. After UI changes, perform a manual browser smoke test when the environment is available.
 
-## Three assertion surfaces
-
-1. **Run-level methods** read the whole run: `t.completed()`, `t.calledTool(name)`, `t.usedNoTools()`, `t.toolOrder([...])`, `t.outputMatches(schema)`. Gate by default.
-2. **`t.check(value, assertion)`** grades a value with a builder from `eve/evals/expect`: `includes` / `equals` / `matches` (gates) and `similarity` (soft).
-3. **`t.judge.autoevals.*`** is LLM-as-judge — soft, uses the configured judge model, never the agent under test.
-
-## Gate vs soft
-
-- **Gate** (hard): a miss marks the eval `failed` and `eve eval` exits non-zero. Run-level methods, `includes`, `equals`, `matches`.
-- **Soft** (tracked): below-threshold marks `scored`, fatal only under `--strict`. `similarity` and every `t.judge.*`.
-- Override per assertion: `.gate(threshold?)`, `.soft(threshold?)`, `.atLeast(threshold)`.
-
-## Run them
+## Required commands
 
 ```bash
-eve eval                       # all evals against a local dev server
-eve eval weather               # one eval, or everything under evals/weather/
-eve eval --strict              # soft threshold misses also fail (use in CI)
+pnpm test
+pnpm typecheck
+pnpm build
 ```
-
-Assert behavior with `t.completed()` plus one or two content checks. Keep dataset fixtures in `evals/data/`. Reach for a judge only when deterministic builders can't capture "correct".
-
-## Related skills
-
-- `better-result-adopt` — Result patterns for tool/handler code under test

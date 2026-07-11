@@ -1,102 +1,46 @@
 ---
-description: Core coding style — immutability, naming, file size, # imports, eve export rules
-globs: ["agent/**/*.ts", "evals/**/*.ts"]
+description: Repository-wide TypeScript, naming, exports, formatting, and comment conventions
+globs: ["**/*.ts", "**/*.vue"]
+paths:
+  - "**/*.ts"
+  - "**/*.vue"
 alwaysApply: true
 ---
 
 # Coding Style
 
-Full conventions are in [CODING_GUIDELINE.md](/CODING_GUIDELINE.md) §コードスタイル. The rules below highlight the most critical points and those enforced by hooks.
+Follow `CODING_GUIDELINE.md`. This repository is a Nuxt application with an embedded Eve agent, so conventions must work across `agent/`, `app/`, `server/`, and `shared/`.
 
-## Immutability
+## TypeScript
 
-ALWAYS return new values; NEVER mutate in place:
+- Prefer `type`; use `interface` only when declaration merging or an external contract benefits from it.
+- Prefer inferred return types for internal functions. Annotate public boundaries or values that would widen to `any` or `unknown`.
+- Derive related types with `z.infer`, `Pick`, `Omit`, indexed access, or other utility types instead of duplicating fields.
+- Use `as const satisfies` when retaining literal values while checking an object contract.
+- Narrow `unknown`; do not use assertions to bypass validation.
+- Prefer immutable transformations when they clarify data flow. Contained local mutation is allowed when it is simpler and does not escape.
 
-```typescript
-// CORRECT: return new copy
-const updated = { ...session, status: "done" };
+## Naming and files
 
-// WRONG: mutates original
-session.status = "done";
-```
+| Target | Convention |
+| --- | --- |
+| Variables and functions | `lowerCamelCase` |
+| Types and Vue components | `UpperCamelCase` |
+| True constants | `UPPER_SNAKE_CASE` |
+| General files | kebab-case where practical |
+| Eve tool files | snake_case ASCII; the filename is the model-visible tool name |
 
-## File size
+Keep one primary responsibility per file. Do not enforce arbitrary line-count limits; extract code when cohesion, readability, or testability improves.
 
-- 200–400 lines typical
-- 800 lines maximum — extract helpers into `agent/lib/` when approaching this limit
-- One primary responsibility per file (one tool / connection / channel per file)
+## Functions and exports
 
-## Naming
+- Use named exports for reusable helpers, schemas, constants, and types.
+- Use default exports where Eve or Nuxt expects them, including Eve authored slots and configuration files.
+- Prefer function declarations for top-level exported helpers.
+- Arrow functions are appropriate for inline callbacks, closures, and framework configuration.
 
-| Target          | Convention       | Example                       |
-| --------------- | ---------------- | ----------------------------- |
-| Variables / fn  | lowerCamelCase   | `cityName`, `getForecast`     |
-| Types           | UpperCamelCase   | `Forecast`, `GetWeatherInput` |
-| Constants       | UPPER_SNAKE_CASE | `MAX_RETRY_COUNT`             |
-| Files           | kebab-case       | `get-weather.ts`, `forecast.ts` |
+## Formatting and comments
 
-Tool/connection/skill **filenames** also become the eve identity (e.g. `agent/tools/get_weather.ts` → tool `get_weather`); match the identity you want.
+Follow `.editorconfig`: two spaces, LF, UTF-8, trimmed trailing whitespace, and a final newline. No repository formatter is configured, so match the surrounding quote and semicolon style.
 
-## Exports
-
-eve resolves authored slots by **default export**. Do not ban it.
-
-```typescript
-// CORRECT: authored slots (agent.ts, channels/, tools/, connections/, schedules/, subagents/)
-export default defineAgent({ model: "anthropic/claude-sonnet-4.6" });
-
-// CORRECT: agent/lib/ shared helpers use named exports
-export function formatForecast(f: Forecast) { /* ... */ }
-
-// WRONG: a named export where eve expects the default-exported define* slot
-export const agent = defineAgent({ /* ... */ });
-```
-
-## Function style & type inference
-
-> Both live in [CODING_GUIDELINE.md](/CODING_GUIDELINE.md) §エクスポートと関数スタイル / §型推論を優先する, are NOT hook-enforced, and Claude defaults to the wrong choice on both.
-
-**Top-level public helpers use `function` declarations, not arrow functions** (a tool's `execute` and inline callbacks are exempt):
-
-```typescript
-// CORRECT
-export function toSummary(r: WeatherResult) {
-  return { city: r.city, condition: r.condition };
-}
-
-// WRONG: arrow for a top-level public helper
-export const toSummary = (r: WeatherResult) => ({ city: r.city });
-```
-
-**Prefer inference over explicit return-type annotations** — annotate only when inference yields `unknown`/`any`, or at an explicit public API boundary:
-
-```typescript
-// CORRECT: return type inferred
-export function toSummary(r: WeatherResult) {
-  return { city: r.city, condition: r.condition };
-}
-
-// WRONG: redundant annotation TypeScript can infer
-export function toSummary(r: WeatherResult): WeatherSummary { /* ... */ }
-```
-
-## Hook-backed bans
-
-> Also enforced by a PostToolUse hook in `.claude/settings.json`
-
-- **No `interface`** — use `type` everywhere.
-- **No relative imports** — always use the `#` alias (`#*` → `agent/*`, `#evals/*` → `evals/*`), even within the same directory. `eve`-package imports stay as-is.
-
-```typescript
-// WRONG: relative paths, even when the file is adjacent
-import { formatForecast } from "./forecast";
-import { helper } from "../lib/helper";
-
-// CORRECT: always #
-import { formatForecast } from "#lib/forecast";
-import { helper } from "#lib/helper";
-```
-
-## Logging (recommendation, not enforced)
-
-Prefer eve instrumentation (`agent/instrumentation.ts`, OpenTelemetry) over `console.log` for anything you want to keep. Stray `console.log` is fine while debugging but should not land in committed code.
+Comments explain why, a constraint, or a trade-off. Do not restate code. TODOs should name a concrete follow-up condition and include an owner or issue when one exists; do not invent deadlines.

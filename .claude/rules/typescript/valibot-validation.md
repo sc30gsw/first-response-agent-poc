@@ -1,1 +1,0 @@
-../../../.agents/rules/typescript/valibot-validation.md

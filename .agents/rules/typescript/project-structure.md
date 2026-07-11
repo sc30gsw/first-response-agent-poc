@@ -1,74 +1,40 @@
 ---
-description: eve agent/ authored slots, evals/ sibling, # import alias, lib/ for shared code
-globs: ["agent/**/*.ts", "evals/**/*.ts"]
+description: Nuxt, Eve, server, shared, test, and import ownership boundaries
+globs: ["**/*.ts", "**/*.vue"]
+paths:
+  - "**/*.ts"
+  - "**/*.vue"
 alwaysApply: true
 ---
 
-# Project Structure
+# Project Structure and Imports
 
-> This rule extends [CODING_GUIDELINE.md](/CODING_GUIDELINE.md) §プロジェクト構造.
+This is a Nuxt 4 full-stack application with an embedded Eve agent.
 
-eve builds the agent by walking the filesystem under `agent/`. Each directory is an **authored slot**, and the slot a file lands in determines how eve loads it. See `node_modules/eve/docs/reference/project-layout.md`.
+| Directory | Ownership |
+| --- | --- |
+| `agent/` | Eve configuration, web channel, instructions, skills, tools, and agent-only helpers |
+| `app/` | Vue UI, pages, layouts, composables, and client utilities |
+| `server/` | Nitro routes, server logic, authentication, database schema, and migrations |
+| `shared/` | Cross-layer serializable types and helpers |
+| `tests/` | Deterministic Vitest tests |
 
-## Authored layout
+Do not reduce the repository to an Eve-only `agent/` and `evals/` layout. Do not add `evals/` unless `REQUIREMENT.md` and the quality gate are intentionally changed.
 
-```
-my-eve-first-agent/
-├── package.json
-├── tsconfig.json          # include: agent/**/*.ts, evals/**/*.ts, .eve/**/*.d.ts
-├── agent/
-│   ├── agent.ts           # runtime config — export default defineAgent(...)
-│   ├── instructions.md    # base system prompt
-│   ├── instrumentation.ts # telemetry (root-only)
-│   ├── channels/          # HTTP / messaging entrypoints (root-only)
-│   ├── connections/       # MCP / OpenAPI connections — one per file
-│   ├── hooks/             # lifecycle / stream-event subscribers
-│   ├── skills/            # on-demand procedures (markdown or module)
-│   ├── tools/             # typed executable integrations — one per file
-│   ├── schedules/         # recurring jobs (root-only)
-│   ├── subagents/         # specialist child agents
-│   ├── sandbox/           # sandbox definition + seeded workspace files
-│   └── lib/               # shared authored helper code (import-only)
-└── evals/                 # scored checks — sibling of agent/, NOT inside it
-    ├── evals.config.ts
-    └── **/*.eval.ts
-```
+## Imports
 
-## Identity comes from the path
+- Use `#lib/*` or another `#*` import for `agent/*`, as configured in `package.json`.
+- Use `~/` for Nuxt app-owned modules.
+- Use `~~/` for root-owned modules when needed.
+- Use `#shared/` for shared modules in Nuxt-managed code.
+- Relative imports are acceptable for nearby files in the same module.
+- Avoid deep relative imports such as `../../../`; use the ownership alias instead.
 
-You never write a `name` or `id` field on a `define*` call. The file path is the identity:
+Do not invent `#evals/*`; it is not configured.
 
-```
-agent/tools/get_weather.ts      →  tool  "get_weather"
-agent/connections/linear.ts     →  connection "linear"
-agent/skills/summarize.md       →  skill "summarize"
-agent/subagents/researcher/     →  subagent "researcher"
-```
+## Layering
 
-The root agent's name comes from `package.json` `name`.
-
-## `#` alias (relative paths forbidden)
-
-> Also enforced by a PostToolUse hook in `.claude/settings.json`
-
-The `package.json` `imports` field maps `#*` → `./agent/*` and `#evals/*` → `./evals/*`.
-
-```typescript
-// CORRECT
-import { formatForecast } from "#lib/forecast";   // → agent/lib/forecast
-import { fixtures } from "#evals/data/fixtures";   // → evals/data/fixtures
-
-// WRONG: relative paths — forbidden even within the same directory
-import { formatForecast } from "./lib/forecast";
-import { helper } from "../lib/helper";
-```
-
-`eve`-package imports (`import { defineAgent } from "eve"`) are external and stay as-is.
-
-## Shared code goes in `agent/lib/`
-
-`lib/` is import-only source code that never reaches the sandbox workspace. Put helpers shared across tools/channels/subagents here instead of reaching across slots.
-
-## What does not exist here
-
-This is a backend agent app. There is **no** `src/`, no `features/`, no `routes/`, no React components, and no `~` alias. Do not introduce them.
+- Keep Eve-only helpers in `agent/lib/`.
+- Keep browser code out of `server/` and server secrets out of `app/`.
+- Keep API route handlers thin and place reusable server logic under `server/utils/` or a cohesive server module.
+- Put cross-layer contracts in `shared/` only when they are serializable and do not pull server or browser dependencies across the boundary.

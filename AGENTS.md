@@ -9,27 +9,31 @@ This repo is a fork of vercel-labs/personal-agent-template being repurposed as
 **REQUIREMENT.md is the source of truth** for product scope.
 
 Key constraints (REQUIREMENT §8/§10):
+
 - Web channel ONLY — no Slack, iMessage, schedules, or multi-agent
 - Dummy JSON case/employee data — no real data connections
 - Template features (Slack, Sendblue, Linear, GitHub tools) are unused legacy, not yet removed
 
 ## Quick Reference
 
-| Command | Description |
-|---------|-------------|
-| `pnpm install` | Install dependencies |
-| `pnpm dev` | Start Nuxt + Eve dev server |
-| `pnpm build` | Production build |
-| `pnpm typecheck` | TypeScript check |
-| `pnpm db:generate` | Generate Drizzle migrations |
-| `pnpm db:migrate` | Apply migrations |
+| Command            | Description                    |
+| ------------------ | ------------------------------ |
+| `pnpm install`     | Install dependencies           |
+| `pnpm dev`         | Start Nuxt + Eve dev server    |
+| `pnpm test`        | Run deterministic Vitest tests |
+| `pnpm build`       | Production build               |
+| `pnpm typecheck`   | TypeScript check               |
+| `pnpm db:generate` | Generate Drizzle migrations    |
+| `pnpm db:migrate`  | Apply migrations               |
 
 Required env: `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `INTERNAL_API_SECRET` (+ Turso vars on Vercel). See [docs/ENVIRONMENT.md](docs/ENVIRONMENT.md).
 
 ## Toolchain & Quality Gates
 
 - pnpm 9.15.0, Node >= 24. Run `pnpm install` first — node_modules may be absent.
-- **No lint, format, or test tooling exists.** The only check is `pnpm typecheck` (what CI runs).
+- Vitest is configured for deterministic tests under `tests/**/*.test.ts`.
+- No lint or format tooling exists. Do not invent lint/format commands.
+- Required quality gate: `pnpm test`, `pnpm typecheck`, and `pnpm build`.
 - Style: `.editorconfig` only (2-space indent, LF, final newline).
 - DB commands go through `nuxt db` (`pnpm db:generate` / `db:migrate`), not raw drizzle-kit.
   Reset local DB: `rm -rf .data/db && pnpm db:migrate`
@@ -71,6 +75,14 @@ agent/lib/*-internal.ts  →  /api/internal/*  →  server/utils/*
 ```
 
 Authenticated with `Authorization: Bearer <INTERNAL_API_SECRET>`. See [`server/utils/internal-api.ts`](server/utils/internal-api.ts).
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# Next.js: ALWAYS read docs before coding
+
+Before any Next.js work, find and read the relevant doc in `node_modules/next/dist/docs/`. Your training data is outdated — the docs are the source of truth.
+
+<!-- END:nextjs-agent-rules -->
 
 ## Memory Flow
 
