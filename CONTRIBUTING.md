@@ -33,11 +33,11 @@ Set real values in `.env`. Never commit secrets or `.data/`.
 
 ```
 personal-agent-template/
-├── agent/          # Eve agent: channels, tools, skills, connections
-├── app/            # Nuxt 4 UI: chat, settings, profile
-├── server/         # Nitro API, Drizzle schema, auth, memory
+├── agent/          # Eve agent: channels, tools, skills, deterministic domain search
+├── app/            # Next.js App Router UI: landing, chat
+├── server/         # Server utilities, Drizzle schema, auth
 ├── shared/         # Types and helpers used by app + agent
-└── docs/           # Documentation (architecture, env, customization)
+└── docs/           # Documentation (architecture, env)
 ```
 
 ## Making Changes
@@ -60,10 +60,6 @@ personal-agent-template/
 4. Link related issues when applicable
 
 PR titles must follow Conventional Commits (enforced by CI). Scopes: `app`, `agent`, `server`, `docs`, `deps`.
-
-## Customizing the Template
-
-If you are forking for your own agent (not contributing upstream), see [docs/CUSTOMIZATION.md](./docs/CUSTOMIZATION.md).
 
 ## License
 

@@ -1,166 +1,105 @@
-# Personal Agent Template — Architecture
+# アーキテクチャ
 
-> Back to [README](../README.md) | See also: [Environment](./ENVIRONMENT.md), [Customization](./CUSTOMIZATION.md)
+> [README](../README.md) に戻る | 参照: [環境変数](./ENVIRONMENT.md)
 
-This document describes the technical architecture of Personal Agent Template — a durable personal AI assistant built with Eve, Nuxt 4, and Better Auth.
+複雑不動産案件 初動支援アシスタント（PoC）の技術構成です。Next.js（App Router）+ Eve + Better Auth（匿名認証）による、Web チャット単一チャネルのエージェントです。
 
-## System overview
-
-The app runs as two cooperating services on Vercel:
+## システム概要
 
 ```mermaid
 flowchart TB
-  subgraph surfaces [User surfaces]
-    web[Web chat — Nuxt]
-    slack[Slack DMs and mentions]
-    imessage[iMessage — Sendblue]
+  user[ユーザー — Web チャット]
+
+  subgraph next [Next.js — app/ + server/]
+    ui[app/ — App Router UI（構造化カード）]
+    api[app/api — 認証・スレッド API]
+    auth[Better Auth — 匿名認証]
+    db[(libsql — Drizzle)]
   end
 
-  subgraph eve [Eve agent — agent/]
-    channels[Channels: eve · slack · sendblue]
-    tools[Tools: weather · save_memory]
-    skills[Skills and connections: Linear MCP]
+  subgraph eve [Eve エージェント — agent/]
+    channel[channels/eve.ts — Web チャネル]
+    tools[tools/ — 案件分析・検索・相談文生成]
+    domain[lib/domain — 決定的検索（ダミーデータ）]
   end
 
-  subgraph nuxt [Nuxt app — app/ + server/]
-    api["/api/* — public API"]
-    internal["/api/internal — agent-only"]
-    auth[Better Auth]
-    db[(NuxtHub SQLite — Drizzle)]
-  end
-
-  connect[Vercel Connect — Linear · Slack]
-
-  surfaces --> eve
-  eve -->|"HTTP + Bearer INTERNAL_API_SECRET"| nuxt
+  user --> ui
+  ui --> channel
+  channel --> tools
+  tools --> domain
   api --> db
-  internal --> db
   auth --> db
-  nuxt --> connect
 ```
 
-| Vercel service | Entry | Role |
-|----------------|-------|------|
-| `web` | `/` | Nuxt UI + Nitro API |
-| `eve` | `/_eve_internal/eve` | Eve agent runtime |
+Vercel では [`vercel.json`](../vercel.json) の `experimentalServices` により `web`（Next.js）と `eve`（`/_eve_internal/eve`）の 2 サービスがデプロイされます。
 
-Configured in [`vercel.json`](../vercel.json).
-
-## Project structure
+## ディレクトリ構成
 
 ```
-personal-agent-template/
-├── agent/                    # Eve agent
-│   ├── agent.ts              # Model and agent config
-│   ├── channels/             # eve (web), slack, sendblue
-│   ├── tools/                # weather, save_memory
-│   ├── skills/               # e.g. daily-summary.md
-│   ├── connections/          # Linear MCP
-│   ├── lib/                  # base-instructions, memory-internal, slack-internal
-│   └── instructions.ts       # session.started hooks (memory injection)
-├── app/                      # Nuxt frontend
-│   ├── pages/                # chat, settings, login
-│   ├── components/           # chat UI, profile, integrations
-│   └── composables/          # useMemory, useProfile, chat providers
-├── server/                   # Nitro API
-│   ├── api/                  # Public + internal routes
-│   ├── db/                   # Drizzle schema + migrations
-│   └── utils/                # memory, profile, auth, connectors
-├── shared/                   # Cross-layer types and helpers
-│   ├── agent.ts              # Branding metadata
-│   └── types/                # memory, profile, thread, connector
-└── docs/                     # Documentation
+├── agent/                     # Eve エージェント
+│   ├── agent.ts               # モデル設定（anthropic/claude-sonnet-4.6）
+│   ├── channels/eve.ts        # Web チャネル
+│   ├── instructions.ts        # エージェント指示（英語）
+│   ├── skills/                # initial-triage.md（初動トリアージ手順）
+│   ├── tools/                 # analyze_case / search_similar_cases / search_experts /
+│   │                          #   search_guides / draft_consultation_request ほか。
+│   │                          #   bash, web_search 等の汎用ツールは disableTool() で無効化
+│   └── lib/
+│       ├── domain/            # 決定的検索: ダミーデータ + スコアリング（LLM 非依存）
+│       ├── consultation-draft.ts
+│       └── tool-schemas.ts    # ツール入出力の Zod スキーマ
+├── app/                       # Next.js App Router
+│   ├── page.tsx / chat/[id]/  # ランディング・チャット画面
+│   ├── _components/           # eve-chat, tool-results（構造化カード）など
+│   └── api/                   # auth/[...all], threads, threads/[id]（route.ts）
+├── server/
+│   ├── db/                    # Drizzle スキーマ（auth, threads）・マイグレーション・接続
+│   ├── schemas/               # API 入出力の Zod スキーマ
+│   └── utils/                 # auth, create-auth, session, threads
+├── lib/                       # auth-client, sample-cases（UI 用ダミー）
+├── shared/                    # 層間共有の型・ツール定義
+└── tests/                     # Vitest（domain / agent / server）
 ```
 
-## Request flows
+パスエイリアス: `@/*` → リポジトリルート, `#lib/*` → `agent/lib/*`（`package.json` imports: `#*` → `agent/*`）。
 
-### Web chat
+## リクエストフロー
 
-1. User opens `/chat/[id]` — Nuxt loads thread via `/api/threads`
-2. Chat streams through Eve's Nuxt module (`eve/nuxt`)
-3. Tool calls render in [`MessageContentEve.vue`](../app/components/chat/message/MessageContentEve.vue)
-4. `save_memory` shows approval UI ([`ToolSaveMemory.vue`](../app/components/chat/tool/ToolSaveMemory.vue))
+1. ユーザーが匿名サインイン（Better Auth anonymous プラグイン）
+2. 相談内容を入力 — `app/_components/eve-chat.tsx` が Eve の Web チャネルへストリーム接続
+3. エージェントが `analyze_case` → `search_similar_cases` / `search_experts` / `search_guides` → `draft_consultation_request` の順にツールを呼び出す
+4. 各ツールは `agent/lib/domain/` の決定的検索で順位を確定する（LLM は結果の説明のみで、順位・採点を変更しない）
+5. ツール結果は `app/_components/tool-results.tsx` の構造化カードとして描画される
+6. スレッドは `app/api/threads` 経由で libsql に永続化される
 
-### Session memory injection
+## データベース
 
-1. Eve fires `session.started` ([`agent/instructions.ts`](../agent/instructions.ts))
-2. Agent calls `GET /api/internal/memory?userId=...` with bearer token
-3. [`agent/lib/memory-internal.ts`](../agent/lib/memory-internal.ts) builds prompt section
-4. Appended to agent instructions for the session
+libsql（ローカル: `file:.data/db.sqlite` / 本番: Turso）+ Drizzle ORM。スキーマは [`server/db/schema/`](../server/db/schema/)。
 
-Start a **new chat** after importing memory so injection picks up changes.
+| テーブル | 用途 |
+|----------|------|
+| `user` / `session` / `account` / `verification` | Better Auth（匿名） |
+| `threads` | チャットスレッド |
 
-### Slack
+マイグレーション: `pnpm db:generate` → `pnpm db:migrate`
 
-1. Slack events hit Eve's slack channel ([`agent/channels/slack.ts`](../agent/channels/slack.ts))
-2. Linked users map Slack ID → app user via `slack_links` table
-3. Unlinked users get instructions to generate a link code in the web app
-4. Link flow: web generates code → user DMs `link <code>` → agent consumes via internal API
+## 認証
 
-### Sendblue (iMessage)
+[Better Auth](https://www.better-auth.com) の匿名プラグインを使用します。設定は [`server/utils/create-auth.ts`](../server/utils/create-auth.ts)（実行時とテストで共通化）。
 
-1. Sendblue delivers inbound messages to Eve's sendblue channel ([`agent/channels/sendblue.ts`](../agent/channels/sendblue.ts))
-2. The sender's E.164 number maps to an app user via `phone_links` (set in **Settings → Profile**)
-3. Unlinked senders receive instructions to add their number in the web app
-4. Replies go back through Sendblue; tool approvals link to the web chat
+- 匿名セッションのみ（メール/パスワードは開発環境でのみ有効）
+- セッション TTL は 24 時間
+- レートリミット有効（メモリストレージ）
+- ユーザー削除時に関連スレッドも削除（`databaseHooks`）
 
-### Integrations (Linear)
+## テスト
 
-1. User connects Linear in **Settings → Integrations**
-2. Vercel Connect provisions MCP credentials
-3. Eve connection ([`agent/connections/linear.ts`](../agent/connections/linear.ts)) exposes Linear tools to the agent
+`tests/` 配下の Vitest。ドメイン検索の決定性（同一入力 → 同一順位）、相談文生成、認証設定を検証します。
 
-## Internal API
-
-Routes under `/api/internal/*` require:
-
-```
-Authorization: Bearer <INTERNAL_API_SECRET>
+```bash
+pnpm test
 ```
 
-Validated in [`server/utils/internal-api.ts`](../server/utils/internal-api.ts).
+## Eve のドキュメント
 
-| Route | Purpose |
-|-------|---------|
-| `GET /api/internal/memory` | Fetch user memory for session injection |
-| `POST /api/internal/memory` | Save memory from agent tool |
-| `GET /api/internal/phone/link` | Resolve phone number → app user |
-| `GET /api/internal/slack/link/member` | Resolve Slack user → app user |
-| `POST /api/internal/slack/link/consume` | Consume link code |
-
-Agent-side clients live in `agent/lib/*-internal.ts`.
-
-## Database
-
-SQLite via [NuxtHub](https://hub.nuxt.com). Schema in [`server/db/schema/`](../server/db/schema/).
-
-Key tables:
-
-| Table | Purpose |
-|-------|---------|
-| `user` / `session` / `account` | Better Auth |
-| `threads` | Chat threads |
-| `user_profile` | Name, timezone, phone |
-| `user_memory` | Long-term memory by category |
-| `phone_links` | Phone ↔ app user mapping (Sendblue/iMessage) |
-| `slack_links` | Slack ↔ app user mapping |
-| `slack_link_codes` | Temporary link codes |
-
-Migrations: `pnpm db:generate` → `pnpm db:migrate`.
-
-## Memory model
-
-- **Categories** — fixed set in [`shared/types/memory.ts`](../shared/types/memory.ts)
-- **One block per category** — `setMemoryForCategory` replaces all rows for a category
-- **Sources** — `import`, `agent`, `manual`
-- **Import** — Raycast-style paste parser ([`server/utils/memory-import.ts`](../server/utils/memory-import.ts))
-
-## Auth
-
-[Better Auth](https://www.better-auth.com) with email/password. Config: [`server/utils/auth.ts`](../server/utils/auth.ts), route: [`server/api/auth/[...all].ts`](../server/api/auth/[...all].ts).
-
-Global middleware: [`app/middleware/auth.global.ts`](../app/middleware/auth.global.ts).
-
-## Eve docs
-
-For channels, tools, connections, and deployment details, read Eve guides in `node_modules/eve/dist/docs/public/`.
+チャネル・ツール・デプロイの詳細は `node_modules/eve/dist/docs/` を参照してください。
