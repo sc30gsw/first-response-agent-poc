@@ -2,7 +2,7 @@
 
 import type { HandleMessageStreamEvent } from "eve/client";
 import { useEveAgent, type EveDynamicToolPart, type EveMessage } from "eve/react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import type { ThreadRecord, ThreadSummary } from "@/shared/types/thread";
 import { WorkspaceShell } from "./workspace-shell";
@@ -21,7 +21,8 @@ type EveChatProps = {
 };
 
 export function EveChat({ thread, threads }: EveChatProps) {
-  const [input, setInput] = useState("");
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const draftStorageKey = useRef(`thread-draft:${thread.id}`).current;
   const [saveError, setSaveError] = useState<string | null>(null);
   const agent = useEveAgent({
     initialEvents: (thread.state?.events ?? []) as readonly HandleMessageStreamEvent[],
@@ -45,24 +46,23 @@ export function EveChat({ thread, threads }: EveChatProps) {
 
   useEffect(() => {
     try {
-      const key = `thread-draft:${thread.id}`;
-      const savedDraft = sessionStorage.getItem(key);
-      if (savedDraft) {
-        setInput(savedDraft);
-        sessionStorage.removeItem(key);
+      const savedDraft = sessionStorage.getItem(draftStorageKey);
+      if (savedDraft && inputRef.current) {
+        inputRef.current.value = savedDraft;
+        sessionStorage.removeItem(draftStorageKey);
       }
     }
     catch {
-      setSaveError("ブラウザの一時保存を読み込めませんでした。");
+      // The composer remains usable when session storage is unavailable.
     }
-  }, [thread.id]);
+  }, [draftStorageKey]);
 
   async function submitMessage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const message = input.trim();
+    const message = inputRef.current?.value.trim() ?? "";
     if (!message || isBusy) return;
 
-    setInput("");
+    if (inputRef.current) inputRef.current.value = "";
     await agent.send({ message });
   }
 
@@ -102,19 +102,18 @@ export function EveChat({ thread, threads }: EveChatProps) {
         <form className="chat-composer" onSubmit={submitMessage}>
           <label className="visually-hidden" htmlFor="chat-input">相談内容または追加情報</label>
           <textarea
+            ref={inputRef}
             id="chat-input"
-            value={input}
             rows={4}
             disabled={isBusy}
             placeholder="相談内容、または追加で分かったことを入力…"
-            onChange={(event) => setInput(event.target.value)}
           />
           <div className="chat-composer-footer">
             <p><span aria-hidden="true">!</span> 個人情報は入力しないでください</p>
             {isBusy ? (
               <button className="secondary-button" type="button" onClick={agent.stop}>停止</button>
             ) : (
-              <button className="primary-button" type="submit" disabled={!input.trim()}>送信 <span aria-hidden="true">↑</span></button>
+              <button className="primary-button" type="submit">送信 <span aria-hidden="true">↑</span></button>
             )}
           </div>
         </form>
