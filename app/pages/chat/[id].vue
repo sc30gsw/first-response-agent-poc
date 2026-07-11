@@ -78,6 +78,11 @@ function handleSubmit(e: Event) {
 function handleInputResponses(responses: Parameters<typeof sendInputResponses>[0]) {
   void sendInputResponses(responses);
 }
+
+function handleCardMessage(text: string) {
+  if (isBusy.value) return;
+  void sendMessage(text);
+}
 </script>
 
 <template>
@@ -128,6 +133,7 @@ function handleInputResponses(responses: Parameters<typeof sendInputResponses>[0
                 :is-last="message.id === messages.at(-1)?.id"
                 :can-respond="!isBusy"
                 @input-responses="handleInputResponses"
+                @send-message="handleCardMessage"
               />
             </template>
           </UChatMessages>

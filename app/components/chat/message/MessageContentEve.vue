@@ -15,6 +15,11 @@ import { getMergedParts } from "~/utils/chat/ai";
 import { hasVisibleParts, getToolDisplayName, normalizeEveParts, shouldShowToolInput } from "~/utils/chat/eve";
 import { buildDisplayParts } from "~/utils/chat/save-memory";
 import type { WeatherUIToolInvocation } from "~~/shared/utils/tools/weather";
+import type {
+  AnalyzeCaseUIToolInvocation,
+  DraftConsultationUIToolInvocation,
+} from "~~/shared/utils/tools/first-response";
+import { isEvidenceSearchToolName } from "~~/shared/utils/tools/first-response";
 
 const props = defineProps<{
   message: UIMessage;
@@ -25,6 +30,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   inputResponses: [responses: AgentInputResponse[]];
+  sendMessage: [text: string];
 }>();
 
 const rawParts = computed(() => props.message.parts);
@@ -77,6 +83,26 @@ const showThinking = computed(
           v-if="getToolName(entry.part) === 'weather'"
           :invocation="{ ...(entry.part as WeatherUIToolInvocation) }"
           :streaming="isToolStreaming(entry.part)"
+        />
+        <ChatToolAnalysisReport
+          v-else-if="getToolName(entry.part) === 'analyze_case'"
+          :invocation="{ ...(entry.part as AnalyzeCaseUIToolInvocation) }"
+          :streaming="isToolStreaming(entry.part)"
+          :can-respond="canRespond ?? true"
+          @send-message="emit('sendMessage', $event)"
+        />
+        <ChatToolConsultationDraft
+          v-else-if="getToolName(entry.part) === 'draft_consultation_request'"
+          :invocation="{ ...(entry.part as DraftConsultationUIToolInvocation) }"
+          :streaming="isToolStreaming(entry.part)"
+        />
+        <ChatToolEvidenceSearch
+          v-else-if="isDynamicToolUIPart(entry.part) && isEvidenceSearchToolName(getToolName(entry.part))"
+          :invocation="entry.part"
+          :tool-name="getToolName(entry.part) as 'search_similar_cases' | 'search_guides' | 'search_experts'"
+          :streaming="isToolStreaming(entry.part)"
+          :can-respond="canRespond ?? true"
+          @send-message="emit('sendMessage', $event)"
         />
         <UChatTool
           v-else-if="getToolName(entry.part) === 'web_search' || getToolName(entry.part) === 'google_search'"
