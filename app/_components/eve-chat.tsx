@@ -39,142 +39,28 @@ const EYEBROW = "mb-3 text-[0.8rem] font-bold tracking-[0.12em] text-[#176c67]";
 const PRIMARY_BUTTON = "inline-flex min-h-11 items-center justify-center gap-[22px] rounded-[10px] bg-navy px-[18px] py-2.5 font-bold text-white hover:bg-navy-deep disabled:cursor-wait disabled:opacity-[.62]";
 const SECONDARY_BUTTON = "min-h-10 cursor-pointer rounded-lg border border-control-line bg-white px-3.5 py-2 font-extrabold text-navy hover:border-teal hover:bg-teal-pale disabled:cursor-wait disabled:opacity-[.62]";
 
+function readAndClearDraft(storageKey: string): string {
+  if (typeof sessionStorage === "undefined") return "";
+  const restored = Result.try({
+    try: () => {
+      const savedDraft = sessionStorage.getItem(storageKey);
+      if (savedDraft) sessionStorage.removeItem(storageKey);
+      return savedDraft;
+    },
+    catch: cause => cause,
+  });
+  return !Result.isError(restored) && restored.value ? restored.value : "";
+}
+
 export function EveChat({ thread, threads }: EveChatProps) {
   const queryClient = useQueryClient();
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const draftStorageKey = useRef(`thread-draft:${thread.id}`).current;
-  const eventsRef = useRef<ThreadState["events"]>(thread.state?.events ?? []);
-  const sessionRef = useRef<ThreadState["session"]>(thread.state?.session ?? { streamIndex: 0 });
-  const revisionRef = useRef(thread.revision);
-  const pendingSaveRef = useRef<ThreadState | null>(null);
-  const saveWorkerRef = useRef<Promise<void> | null>(null);
-  const saveBlockedRef = useRef(false);
-  const savePausedRef = useRef(false);
-  const manualSaveRetryRef = useRef(false);
   const pendingComposerMessageRef = useRef<string | null>(null);
-  const summaryInitializedRef = useRef(thread.summary !== "");
-  const pendingSummaryRef = useRef<string | null>(null);
   const [announcement, setAnnouncement] = useState("");
-  const [canRetrySave, setCanRetrySave] = useState(false);
-  const [draft, setDraft] = useState("");
-  const [saveError, setSaveError] = useState<string | null>(null);
+  const [draft, setDraft] = useState(() => readAndClearDraft(draftStorageKey));
   const [sendError, setSendError] = useState<string | null>(null);
-  const saveThreadMutation = useMutation({
-    mutationKey: ["threads", thread.id, "state"],
-    mutationFn: async (state: ThreadState) => {
-      const expectedRevision = revisionRef.current;
-      const summary = pendingSummaryRef.current;
-      const updatedThread = await threadApiClient.update({
-        expectedRevision,
-        id: thread.id,
-        input: summary === null ? { state } : { state, summary },
-      });
-      if (updatedThread.revision !== expectedRevision + 1) {
-        throw new ThreadApiClientError({
-          code: "invalid_response",
-          message: "API returned an unexpected revision",
-          retryable: false,
-          status: 200,
-        });
-      }
-      return { summaryApplied: summary, updatedThread };
-    },
-    onError: (error) => {
-      if (error instanceof ThreadApiClientError && error.code === "conflict") {
-        saveBlockedRef.current = true;
-        savePausedRef.current = false;
-        manualSaveRetryRef.current = false;
-        pendingSaveRef.current = null;
-        setCanRetrySave(false);
-        setSaveError("別の画面で会話履歴が更新されました。最新の履歴を保つため、このページを再読み込みしてください。");
-        return;
-      }
-      if (error instanceof ThreadApiClientError && error.code === "invalid_response") {
-        setSaveError("会話履歴の保存結果を確認できませんでした。再試行し、解消しない場合はページを再読み込みしてください。");
-        return;
-      }
-      if (error instanceof ThreadApiClientError && error.code === "network_error") {
-        setSaveError("通信エラーにより会話履歴を保存できませんでした。接続を確認してください。");
-        return;
-      }
-      setSaveError("会話履歴を保存できませんでした。ページを閉じずに再度お試しください。");
-    },
-    onSuccess: ({ summaryApplied, updatedThread }) => {
-      if (summaryApplied !== null && pendingSummaryRef.current === summaryApplied) {
-        pendingSummaryRef.current = null;
-      }
-      const summary = threadRecordToSummary(updatedThread);
-      revisionRef.current = updatedThread.revision;
-      queryClient.setQueryData(threadQueryKeys.detail(thread.id), updatedThread);
-      queryClient.setQueriesData<ThreadSummary[]>(
-        { queryKey: threadQueryKeys.lists() },
-        cached => cached?.map(item => item.id === summary.id ? summary : item),
-      );
-      savePausedRef.current = false;
-      setCanRetrySave(false);
-      if (!saveBlockedRef.current) setSaveError(null);
-      if (manualSaveRetryRef.current) {
-        manualSaveRetryRef.current = false;
-        setAnnouncement("会話履歴を保存しました。");
-      }
-    },
-    retry: shouldRetryThreadApiError,
-    retryDelay: threadApiRetryDelay,
-    scope: { id: `thread-state:${thread.id}` },
-  });
-
-  function currentThreadState(): ThreadState {
-    return {
-      events: [...eventsRef.current],
-      session: { ...sessionRef.current },
-    };
-  }
-
-  function enqueueStateSave(state: ThreadState) {
-    if (saveBlockedRef.current) return;
-    pendingSaveRef.current = state;
-    if (savePausedRef.current || saveWorkerRef.current) return;
-
-    const worker = (async () => {
-      while (pendingSaveRef.current && !saveBlockedRef.current) {
-        const nextState = pendingSaveRef.current;
-        pendingSaveRef.current = null;
-        const saved = await Result.tryPromise({
-          try: () => saveThreadMutation.mutateAsync(nextState),
-          catch: cause => cause,
-        });
-        if (Result.isError(saved)) {
-          if (!saveBlockedRef.current) {
-            pendingSaveRef.current ??= nextState;
-            savePausedRef.current = true;
-            manualSaveRetryRef.current = false;
-            setCanRetrySave(true);
-            setAnnouncement("会話履歴を保存できませんでした。保存を再試行できます。");
-          }
-          break;
-        }
-      }
-    })();
-
-    saveWorkerRef.current = worker;
-    void worker.finally(() => {
-      if (saveWorkerRef.current === worker) saveWorkerRef.current = null;
-      if (pendingSaveRef.current && !saveBlockedRef.current && !savePausedRef.current) {
-        enqueueStateSave(pendingSaveRef.current);
-      }
-    });
-  }
-
-  function retryStateSave() {
-    const pendingState = pendingSaveRef.current;
-    if (!pendingState || saveBlockedRef.current || !savePausedRef.current || saveWorkerRef.current) return;
-
-    savePausedRef.current = false;
-    manualSaveRetryRef.current = true;
-    setCanRetrySave(false);
-    setAnnouncement("会話履歴の保存を再試行しています。");
-    enqueueStateSave(pendingState);
-  }
+  const persistence = useThreadPersistence({ onAnnounce: setAnnouncement, queryClient, thread });
 
   const agent = useEveAgent({
     headers: { "x-thread-id": thread.id },
@@ -189,21 +75,16 @@ export function EveChat({ thread, threads }: EveChatProps) {
     onEvent(event) {
       const parsed = PersistedEveEventSchema.safeParse(event);
       if (!parsed.success) {
-        saveBlockedRef.current = true;
-        savePausedRef.current = false;
-        manualSaveRetryRef.current = false;
-        pendingSaveRef.current = null;
-        setCanRetrySave(false);
-        setSaveError("未対応の会話イベントを受信したため、履歴の保存を停止しました。ページを再読み込みしてください。");
+        persistence.blockSaving("未対応の会話イベントを受信したため、履歴の保存を停止しました。ページを再読み込みしてください。");
         return;
       }
 
-      eventsRef.current = [...eventsRef.current, parsed.data];
-      enqueueStateSave(currentThreadState());
+      persistence.eventsRef.current = [...persistence.eventsRef.current, parsed.data];
+      persistence.enqueueStateSave(persistence.currentThreadState());
     },
     onSessionChange(session) {
-      sessionRef.current = { ...session };
-      enqueueStateSave(currentThreadState());
+      persistence.sessionRef.current = { ...session };
+      persistence.enqueueStateSave(persistence.currentThreadState());
     },
     onFinish(snapshot) {
       if (!snapshot.error) {
@@ -212,9 +93,9 @@ export function EveChat({ thread, threads }: EveChatProps) {
       }
       const parsedEvents = PersistedEveEventsSchema.safeParse(snapshot.events);
       if (parsedEvents.success) {
-        eventsRef.current = parsedEvents.data;
-        sessionRef.current = { ...snapshot.session };
-        enqueueStateSave(currentThreadState());
+        persistence.eventsRef.current = parsedEvents.data;
+        persistence.sessionRef.current = { ...snapshot.session };
+        persistence.enqueueStateSave(persistence.currentThreadState());
       }
 
       const boundary = snapshot.events.at(-1)?.type;
@@ -224,20 +105,6 @@ export function EveChat({ thread, threads }: EveChatProps) {
     },
   });
   const isBusy = agent.status === "submitted" || agent.status === "streaming";
-
-  useEffect(() => {
-    const restored = Result.try({
-      try: () => {
-        const savedDraft = sessionStorage.getItem(draftStorageKey);
-        if (savedDraft) sessionStorage.removeItem(draftStorageKey);
-        return savedDraft;
-      },
-      catch: cause => cause,
-    });
-    if (!Result.isError(restored) && restored.value) {
-      setDraft(restored.value);
-    }
-  }, [draftStorageKey]);
 
   async function sendAgentInput(
     input: Parameters<typeof agent.send>[0],
@@ -274,18 +141,17 @@ export function EveChat({ thread, threads }: EveChatProps) {
 
     setAnnouncement("");
     pendingComposerMessageRef.current = message;
-    const isFirstMessage = !summaryInitializedRef.current;
-    if (isFirstMessage) pendingSummaryRef.current = normalizeThreadSummary(message);
+    const isFirstMessage = persistence.beginFirstMessageSummaryIfNeeded(message, normalizeThreadSummary);
     setDraft("");
     const sent = await sendAgentInput(
       { message },
       "メッセージを送信できませんでした。再度お試しください。",
     );
     if (sent) {
-      if (isFirstMessage) summaryInitializedRef.current = true;
+      if (isFirstMessage) persistence.commitFirstMessageSummary();
       return;
     }
-    if (isFirstMessage) pendingSummaryRef.current = null;
+    if (isFirstMessage) persistence.rollbackFirstMessageSummary();
     setDraft(message);
     pendingComposerMessageRef.current = null;
   }
@@ -321,10 +187,10 @@ export function EveChat({ thread, threads }: EveChatProps) {
         />
         <ChatFeedback
           announcement={announcement}
-          canRetrySave={canRetrySave}
+          canRetrySave={persistence.canRetrySave}
           hasAgentError={Boolean(agent.error)}
-          onRetrySave={retryStateSave}
-          saveError={saveError}
+          onRetrySave={persistence.retryStateSave}
+          saveError={persistence.saveError}
           sendError={sendError}
         />
         <InputGuidance disabled={isBusy} onAppendExample={appendExample} />
