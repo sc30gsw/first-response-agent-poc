@@ -4,7 +4,7 @@ import type { AuthFn } from "eve/channels/auth";
 import type { EveChannelEvents } from "eve/channels/eve";
 import type { InputResponse } from "eve/client";
 import type { SessionAuthContext } from "eve/context";
-import { and, eq, lt, lte, sql } from "drizzle-orm";
+import { and, eq, gt, lt, lte, sql } from "drizzle-orm";
 import { z } from "zod";
 import { MAX_CHAT_MESSAGE_CHARS } from "@/shared/chat-limits";
 import {
@@ -28,6 +28,11 @@ import { readJsonBody, validateSameOrigin } from "@/server/utils/http-security";
 
 const SESSION_ROUTE = /^\/eve\/v1\/session(?:\/([^/]+)(?:\/stream)?)?\/?$/u;
 const SESSION_BINDING_RETRY_DELAYS_MS = [50, 100, 200, 400, 800, 1_600] as const;
+// On Vercel, the durable session.started hook can complete more than ten
+// seconds after the session endpoint has returned. An active server-issued
+// lease proves that a session is being created for this user, so that narrow
+// case may safely wait longer without slowing arbitrary session-id probes.
+const ACTIVE_LEASE_BINDING_RETRY_DELAYS_MS = [100, 200, 400, 800, 1_600, 3_200, 6_400] as const;
 const nonBlankStringSchema = z.string().min(1).refine((value) => value.trim().length > 0);
 const textPartSchema = z.object({
   type: z.literal("text"),
@@ -112,6 +117,7 @@ type EveDatabaseOperation =
   | "bind-session"
   | "clean-rate-limits"
   | "consume-rate-limit"
+  | "find-run-lease"
   | "find-session-binding"
   | "find-thread"
   | "release-lease"
@@ -587,10 +593,26 @@ export function createEveSecurity(options: CreateEveSecurityOptions) {
         binding = backfilledBindings[0];
       }
 
+      const activeLeases = binding ? [] : yield* Result.await(runDatabase(
+        "find-run-lease",
+        () => database.select({ leaseId: agentRunLeases.leaseId })
+          .from(agentRunLeases)
+          .where(and(
+            eq(agentRunLeases.subjectKey, keyedHash(`lease:${userId}`)),
+            gt(agentRunLeases.expiresAt, new Date()),
+          ))
+          .limit(1),
+      ));
+      const retryDelays = activeLeases[0]
+        ? ACTIVE_LEASE_BINDING_RETRY_DELAYS_MS
+        : storedSessionId === sessionId
+          ? SESSION_BINDING_RETRY_DELAYS_MS
+          : [];
+
       // Vercel may return the session id before its session.started hook has
-      // persisted the binding. Poll with a small exponential backoff, but only
+      // persisted the binding. Poll with bounded exponential backoff, but only
       // an actual binding row can grant access.
-      for (const delayMs of SESSION_BINDING_RETRY_DELAYS_MS) {
+      for (const delayMs of retryDelays) {
         if (binding) break;
         await new Promise(resolve => setTimeout(resolve, delayMs));
         const pendingBindings = yield* Result.await(runDatabase(

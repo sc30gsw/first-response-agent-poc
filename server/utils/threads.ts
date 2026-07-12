@@ -170,14 +170,24 @@ export async function updateThreadForUser(
   if (Result.isError(existing)) return Result.err(existing.error);
   if (!existing.value) return Result.ok(undefined);
 
+  const nextTitle = patch.title === undefined
+    ? existing.value.title
+    : truncateThreadTitle(patch.title);
+  const nextSummary = patch.summary === undefined
+    ? existing.value.summary
+    : normalizeThreadSummary(patch.summary);
+  const nextState = patch.state === undefined
+    ? existing.value.state
+    : mergeThreadState(existing.value.state, patch.state);
+
   const updateResult = await database.update(threads)
     .set({
       stateVersion: expectedRevision + 1,
       updatedAt: new Date(),
-      ...(patch.title !== undefined ? { title: truncateThreadTitle(patch.title) } : {}),
-      ...(patch.summary !== undefined ? { summary: normalizeThreadSummary(patch.summary) } : {}),
+      ...(patch.title !== undefined ? { title: nextTitle } : {}),
+      ...(patch.summary !== undefined ? { summary: nextSummary } : {}),
       ...(patch.state !== undefined
-        ? { state: serializeThreadState(mergeThreadState(existing.value.state, patch.state)) }
+        ? { state: serializeThreadState(nextState ?? undefined) }
         : {}),
     })
     .where(and(
@@ -186,14 +196,26 @@ export async function updateThreadForUser(
       eq(threads.stateVersion, expectedRevision),
     ));
 
+  const updated = await getThreadForUser(userId, id, database);
+  if (Result.isError(updated)) return Result.err(updated.error);
+
   if (updateResult.rowsAffected === 0) {
+    // Turso can report zero affected rows for an UPDATE that was committed.
+    // Accept that response only when the stored revision and every requested
+    // value prove this exact patch was applied; a competing write still fails.
+    const updateWasApplied = updated.value?.revision === expectedRevision + 1
+      && updated.value.title === nextTitle
+      && updated.value.summary === nextSummary
+      && JSON.stringify(updated.value.state) === JSON.stringify(nextState);
+    if (updateWasApplied) return updated;
+
     return Result.err(new StaleThreadStateError({
       message: "Thread state is stale",
       threadId: id,
     }));
   }
 
-  return getThreadForUser(userId, id, database);
+  return updated;
 }
 
 export async function deleteThreadForUser(
