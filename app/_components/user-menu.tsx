@@ -34,7 +34,7 @@ export function UserMenu() {
         <summary className="grid size-[38px] cursor-pointer place-items-center rounded-full bg-navy text-[0.62rem] font-extrabold text-white list-none [&::-webkit-details-marker]:hidden" aria-label="ユーザーメニューを開く">
           <span aria-hidden="true">匿名</span>
         </summary>
-        <div className="absolute top-[46px] right-0 z-20 w-60 rounded-xl border border-line bg-white p-3.5 shadow-[0_18px_50px_rgb(16_38_59/16%)]">
+        <div className="absolute top-[46px] right-0 z-30 w-60 rounded-xl border border-line bg-white p-3.5 shadow-[0_18px_50px_rgb(16_38_59/16%)]">
           <p className="mb-3 grid gap-[3px] text-[0.78rem]"><strong>匿名デモ</strong><span className="text-[0.68rem] text-ink-soft">セッション有効期限：24時間</span></p>
           <button className="min-h-10 w-full cursor-pointer rounded-lg border border-[#e1bebe] bg-[#fff7f7] text-[0.75rem] font-extrabold text-danger disabled:cursor-wait disabled:opacity-[.62]" type="button" disabled={deleteDemoMutation.isPending} onClick={deleteDemoData}>
             {deleteDemoMutation.isPending ? "削除中…" : "デモデータを削除"}
