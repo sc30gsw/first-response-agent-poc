@@ -38,6 +38,7 @@
     "ai": "^7.0.16",
     "better-auth": "^1.6.23",
     "better-result": "2.9.2",
+    "cnfast": "^0.0.8",
     "drizzle-orm": "^0.45.2",
     "elysia": "1.4.29",
     "eve": "^0.20.0",
@@ -47,11 +48,13 @@
     "zod": "4.4.3"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.2",
     "@types/node": "26.1.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "drizzle-kit": "^0.31.10",
     "react-doctor": "^0.7.4",
+    "tailwindcss": "^4.3.2",
     "typescript": "^6.0.3",
     "vitest": "^4.1.10"
   },

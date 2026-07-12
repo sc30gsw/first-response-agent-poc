@@ -27,7 +27,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { readonly children: ReactNode }) {
   return (
     <html lang="ja">
-      <body><AppProviders>{children}</AppProviders></body>
+      <body className="bg-canvas font-sans text-ink"><AppProviders>{children}</AppProviders></body>
     </html>
   );
 }

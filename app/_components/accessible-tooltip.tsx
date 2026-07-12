@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import type { CSSProperties, PointerEvent as ReactPointerEvent, ReactNode } from "react";
+import { cn } from "cnfast";
 
 type AccessibleTooltipProps = {
   readonly children: ReactNode;
@@ -70,7 +71,7 @@ export function AccessibleTooltip({ children, className, content }: AccessibleTo
   return (
     <span
       ref={rootRef}
-      className={className ? `accessible-tooltip ${className}` : "accessible-tooltip"}
+      className={cn("relative inline-flex min-w-0", className)}
       onPointerEnter={(event) => {
         if (event.pointerType === "mouse") setIsOpen(true);
       }}
@@ -82,6 +83,7 @@ export function AccessibleTooltip({ children, className, content }: AccessibleTo
     >
       <button
         ref={triggerRef}
+        className="min-w-0 cursor-help border-0 bg-transparent p-0 text-inherit [font:inherit] [text-align:inherit]"
         type="button"
         aria-describedby={isOpen ? tooltipId : undefined}
         onBlur={() => setIsOpen(false)}
@@ -104,7 +106,7 @@ export function AccessibleTooltip({ children, className, content }: AccessibleTo
         {children}
       </button>
       {isOpen ? (
-        <span ref={tooltipRef} id={tooltipId} className="tooltip-content" role="tooltip" style={position}>
+        <span ref={tooltipRef} id={tooltipId} className="fixed z-1000 w-max max-w-[min(360px,calc(100vw-24px))] rounded-lg bg-navy-deep px-3 py-2.5 text-left text-[0.76rem] font-semibold leading-[1.65] text-white shadow-[0_10px_28px_rgb(16_38_59/24%)]" role="tooltip" style={position}>
           {content}
         </span>
       ) : null}
