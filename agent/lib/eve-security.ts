@@ -568,6 +568,7 @@ export function createEveSecurity(options: CreateEveSecurityOptions) {
           .limit(1),
       ));
       let binding = initialBindings[0];
+      const storedSessionId = yield* sessionIdFromThreadState(threadState);
 
       if (!binding) {
         const activeLeases = yield* Result.await(runDatabase(
@@ -581,7 +582,10 @@ export function createEveSecurity(options: CreateEveSecurityOptions) {
             .limit(1),
         ));
 
-        if (activeLeases[0]) {
+        // Vercel can finish the turn and release its lease before the browser
+        // opens the stream. A matching persisted session id is safe evidence
+        // to wait for the event hook, but never grants ownership by itself.
+        if (activeLeases[0] || storedSessionId === sessionId) {
           const attempts = SESSION_BINDING_MAX_WAIT_MS / SESSION_BINDING_POLL_INTERVAL_MS;
           for (let attempt = 0; attempt < attempts && !binding; attempt += 1) {
             await new Promise(resolve => setTimeout(resolve, SESSION_BINDING_POLL_INTERVAL_MS));
@@ -599,24 +603,21 @@ export function createEveSecurity(options: CreateEveSecurityOptions) {
 
       // Migration-created rows keep revision 0. Once the client has patched a
       // thread, its mutable state must never be trusted to claim an Eve id.
-      if (!binding && threadRevision === 0) {
-        const storedSessionId = yield* sessionIdFromThreadState(threadState);
-        if (storedSessionId === sessionId) {
-          yield* Result.await(runDatabase(
-            "bind-session",
-            () => database.insert(eveSessionBindings)
-              .values({ sessionId, userId, threadId })
-              .onConflictDoNothing({ target: eveSessionBindings.sessionId }),
-          ));
-          const backfilledBindings = yield* Result.await(runDatabase(
-            "find-session-binding",
-            () => database.select()
-              .from(eveSessionBindings)
-              .where(eq(eveSessionBindings.sessionId, sessionId))
-              .limit(1),
-          ));
-          binding = backfilledBindings[0];
-        }
+      if (!binding && threadRevision === 0 && storedSessionId === sessionId) {
+        yield* Result.await(runDatabase(
+          "bind-session",
+          () => database.insert(eveSessionBindings)
+            .values({ sessionId, userId, threadId })
+            .onConflictDoNothing({ target: eveSessionBindings.sessionId }),
+        ));
+        const backfilledBindings = yield* Result.await(runDatabase(
+          "find-session-binding",
+          () => database.select()
+            .from(eveSessionBindings)
+            .where(eq(eveSessionBindings.sessionId, sessionId))
+            .limit(1),
+        ));
+        binding = backfilledBindings[0];
       }
 
       if (

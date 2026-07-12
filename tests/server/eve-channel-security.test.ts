@@ -290,7 +290,7 @@ describe("Eve WebチャネルのHTTPセキュリティ", () => {
     expect(response.status).toBe(200);
   });
 
-  it("作成直後のstreamは実行中leaseがある間だけ所有者紐付けを待つ", async () => {
+  it("作成直後のstreamは実行中leaseを手掛かりに所有者紐付けを待つ", async () => {
     const cookie = await signIn("198.51.100.66");
     const threadId = await createThread(cookie);
     const sessionId = "binding-race-session";
@@ -314,6 +314,53 @@ describe("Eve WebチャネルのHTTPセキュリティ", () => {
     await binding;
 
     expect(streamAuth?.principalId).toBe(postAuth?.principalId);
+  });
+
+  it("lease解放後も保存済みsession IDが一致すれば所有者紐付けを待つ", async () => {
+    const cookie = await signIn("198.51.100.67");
+    const threadId = await createThread(cookie);
+    const sessionId = "binding-after-lease-session";
+    const postAuth = await context.security.auth(
+      eveRequest("/eve/v1/session", "POST", cookie, threadId, { message: "相談" }, {
+        "x-forwarded-for": "198.51.100.67",
+      }),
+    );
+    expect(postAuth).not.toBeNull();
+    if (!postAuth) throw new Error("Expected authenticated POST context");
+
+    const patched = await context.threadApi.handle(new Request(
+      `${BASE_URL}/api/v1/threads/${threadId}`,
+      {
+        method: "PATCH",
+        headers: {
+          cookie,
+          origin: BASE_URL,
+          "content-type": "application/json",
+          "if-match": "\"0\"",
+        },
+        body: JSON.stringify({
+          state: {
+            events: [],
+            session: { sessionId, streamIndex: 0 },
+          },
+        }),
+      },
+    ));
+    expect(patched.status).toBe(200);
+    await context.security.releaseLeaseFromAuth(postAuth);
+
+    const binding = new Promise<void>((resolve, reject) => {
+      setTimeout(() => {
+        void context.security.bindSessionFromAuth(sessionId, postAuth)
+          .then(resolve, reject);
+      }, 10);
+    });
+    const streamAuth = await context.security.auth(
+      eveRequest(`/eve/v1/session/${sessionId}/stream`, "GET", cookie, threadId),
+    );
+    await binding;
+
+    expect(streamAuth?.principalId).toBe(postAuth.principalId);
   });
 
   it("異なるOriginと長すぎる入力をモデル実行前に拒否する", async () => {

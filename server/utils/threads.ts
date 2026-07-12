@@ -170,7 +170,7 @@ export async function updateThreadForUser(
   if (Result.isError(existing)) return Result.err(existing.error);
   if (!existing.value) return Result.ok(undefined);
 
-  const [updated] = await database.update(threads)
+  const updateResult = await database.update(threads)
     .set({
       stateVersion: expectedRevision + 1,
       updatedAt: new Date(),
@@ -184,10 +184,9 @@ export async function updateThreadForUser(
       eq(threads.id, id),
       eq(threads.userId, userId),
       eq(threads.stateVersion, expectedRevision),
-    ))
-    .returning({ id: threads.id });
+    ));
 
-  if (!updated) {
+  if (updateResult.rowsAffected === 0) {
     return Result.err(new StaleThreadStateError({
       message: "Thread state is stale",
       threadId: id,
