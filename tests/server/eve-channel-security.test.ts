@@ -456,7 +456,11 @@ describe("Eve WebチャネルのHTTPセキュリティ", () => {
     expect(responses.map((response) => response.status)).toEqual([202, 202, 202, 429]);
     const last = responses[3] as Response;
     expect(last.headers.get("retry-after")).toBeTruthy();
-    expect(await last.json()).toMatchObject({ code: "rate_limit_exceeded", ok: false });
+    expect(await last.json()).toMatchObject({
+      code: "rate_limit_exceeded",
+      ok: false,
+      retryAfter: expect.any(Number),
+    });
   });
 
   it("同一ユーザーの実行中ターンを共有DBリースで1件に制限する", async () => {
@@ -488,7 +492,11 @@ describe("Eve WebチャネルのHTTPセキュリティ", () => {
     expect(first.status).toBe(202);
     expect(second.status).toBe(429);
     expect(second.headers.get("retry-after")).toBe("60");
-    expect(await second.json()).toMatchObject({ code: "concurrent_turn_limit", ok: false });
+    expect(await second.json()).toMatchObject({
+      code: "concurrent_turn_limit",
+      ok: false,
+      retryAfter: 60,
+    });
   });
 
   it("認証基盤の失敗をResultのまま返さずplain JSON 500へ変換する", async () => {

@@ -90,12 +90,18 @@ type CreateEveSecurityOptions = {
 class EveHttpError extends Error {
   readonly response: Response;
 
-  constructor(status: number, code: string, message: string, headers?: HeadersInit) {
+  constructor(
+    status: number,
+    code: string,
+    message: string,
+    headers?: HeadersInit,
+    details: Readonly<Record<string, unknown>> = {},
+  ) {
     super(message);
     this.name = "EveHttpError";
     const responseHeaders = new Headers(headers);
     responseHeaders.set("cache-control", "no-store");
-    this.response = Response.json({ code, error: message, ok: false }, {
+    this.response = Response.json({ ...details, code, error: message, ok: false }, {
       headers: responseHeaders,
       status,
     });
@@ -342,6 +348,7 @@ function toHttpError(error: EveSecurityError): EveHttpError {
       value.code,
       value.message,
       { "retry-after": String(value.retryAfter) },
+      { retryAfter: value.retryAfter },
     ),
     EveRequestError: value => new EveHttpError(
       value.status,

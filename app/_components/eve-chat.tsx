@@ -20,6 +20,7 @@ import {
 } from "@/shared/types/thread";
 import type { Expert } from "@/shared/tools/first-response";
 import { AccessibleTooltip } from "./accessible-tooltip";
+import { eveErrorMessage } from "./eve-error-message";
 import { ToolResult } from "./tool-results";
 import { useThreadPersistence } from "./use-thread-persistence";
 import { WorkspaceShell } from "./workspace-shell";
@@ -66,11 +67,15 @@ export function EveChat({ thread, threads }: EveChatProps) {
     headers: { "x-thread-id": thread.id },
     initialEvents: thread.state?.events,
     initialSession: thread.state?.session,
-    onError() {
+    onError(error) {
       const pendingMessage = pendingComposerMessageRef.current;
       if (pendingMessage) setDraft(pendingMessage);
-      setSendError("処理に失敗しました。入力内容を確認して再度お試しください。");
-      setAnnouncement("処理に失敗しました。入力内容を確認して再度お試しください。");
+      const message = eveErrorMessage(
+        error,
+        "処理に失敗しました。入力内容を確認して再度お試しください。",
+      );
+      setSendError(message);
+      setAnnouncement(message);
     },
     onEvent(event) {
       const parsed = PersistedEveEventSchema.safeParse(event);
@@ -117,8 +122,9 @@ export function EveChat({ thread, threads }: EveChatProps) {
     });
     if (!Result.isError(sent)) return true;
 
-    setSendError(failureAnnouncement);
-    setAnnouncement(failureAnnouncement);
+    const message = eveErrorMessage(sent.error, failureAnnouncement);
+    setSendError(message);
+    setAnnouncement(message);
     return false;
   }
 
@@ -189,6 +195,7 @@ export function EveChat({ thread, threads }: EveChatProps) {
           announcement={announcement}
           canRetrySave={persistence.canRetrySave}
           hasAgentError={Boolean(agent.error)}
+          isBusy={isBusy}
           onRetrySave={persistence.retryStateSave}
           saveError={persistence.saveError}
           sendError={sendError}
@@ -280,6 +287,7 @@ function ChatFeedback({
   announcement,
   canRetrySave,
   hasAgentError,
+  isBusy,
   onRetrySave,
   saveError,
   sendError,
@@ -287,6 +295,7 @@ function ChatFeedback({
   readonly announcement: string;
   readonly canRetrySave: boolean;
   readonly hasAgentError: boolean;
+  readonly isBusy: boolean;
   readonly onRetrySave: () => void;
   readonly saveError: string | null;
   readonly sendError: string | null;
@@ -297,6 +306,11 @@ function ChatFeedback({
       {hasAgentError || sendError ? (
         <p className="mx-auto my-2 w-full max-w-[780px] text-[0.82rem] font-bold text-danger" role="alert">
           {sendError ?? "処理に失敗しました。内容を確認して再度お試しください。"}
+        </p>
+      ) : null}
+      {isBusy && !hasAgentError && !sendError ? (
+        <p className="mx-auto my-2 w-full max-w-[780px] rounded-lg border border-[#a8cbc7] bg-teal-pale px-4 py-3 text-[0.82rem] font-bold text-[#176c67]" aria-atomic="true" aria-live="polite" role="status">
+          初動支援AIが内容を分析しています。結果が表示されるまで、そのままお待ちください。
         </p>
       ) : null}
       {saveError ? (
