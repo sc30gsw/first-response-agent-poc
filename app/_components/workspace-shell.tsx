@@ -15,7 +15,7 @@ import { UserMenu } from "./user-menu";
 
 type WorkspaceShellProps = {
   readonly children: ReactNode;
-  readonly currentThreadId?: string;
+  readonly currentThreadId?: ThreadSummary["id"];
   readonly threads: readonly ThreadSummary[];
 };
 

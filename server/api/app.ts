@@ -2,6 +2,7 @@ import { openapi } from "@elysiajs/openapi";
 import { Result, matchError } from "better-result";
 import { Elysia } from "elysia";
 import { z } from "zod";
+import type { ThreadResponse } from "@/shared/types/thread";
 import {
   createThreadApplicationService,
   createThreadRepository,
@@ -13,7 +14,11 @@ import { LimitError, ValidationError } from "../application/thread-errors";
 import type { User } from "../db/schema/auth";
 import { getSessionUserId } from "../utils/session";
 import { readLimitedJsonBody } from "./body-parser";
-import { threadApiSchemas, threadErrorResponses } from "./contracts";
+import {
+  threadApiSchemas,
+  threadErrorResponses,
+  type ThreadApiError,
+} from "./contracts";
 import { addThreadEtagResponseHeaders } from "./openapi-contract";
 import {
   authenticateThreadRequest,
@@ -89,10 +94,11 @@ const validationErrorStatuses = {
 } as const satisfies Record<ValidationError["reason"], 400 | 415 | 428>;
 
 function errorBody(
-  code: z.infer<typeof threadApiSchemas.error>["error"]["code"],
+  code: ThreadApiError["error"]["code"],
   message: string,
+  retryable = false,
 ) {
-  return { error: { code, message } } as const;
+  return { error: { code, message, retryable } } as const;
 }
 
 function jsonResponse(
@@ -116,7 +122,11 @@ function applicationErrorResponse(error: ThreadApplicationError): Response {
         operation: databaseError.operation,
         retryable: databaseError.retryable,
       });
-      return jsonResponse(errorBody("database_error", errorMessages.DatabaseError), 500);
+      return jsonResponse(errorBody(
+        "database_error",
+        errorMessages.DatabaseError,
+        databaseError.retryable,
+      ), 500);
     },
     ForbiddenError: () => jsonResponse(errorBody("forbidden", errorMessages.ForbiddenError), 403),
     LimitError: limitError => jsonResponse(
@@ -141,7 +151,9 @@ function applicationResponse<T>(
     : jsonResponse(result.value, successStatus);
 }
 
-function threadApplicationResponse<T extends { readonly thread: { readonly revision: number } }>(
+function threadApplicationResponse<T extends {
+  readonly thread: Pick<ThreadResponse["thread"], "revision">;
+}>(
   result: Result<T, ThreadApplicationError>,
   successStatus: 200 | 201 = 200,
 ): Response {

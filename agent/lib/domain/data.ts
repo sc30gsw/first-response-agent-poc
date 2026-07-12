@@ -27,7 +27,7 @@ export function loadCollection<T extends { id: string }>(
     throw new DomainDataError(`${label}データの検証に失敗しました: ${parsed.error.message}`);
   }
 
-  const seen = new Set<string>();
+  const seen = new Set<T["id"]>();
   for (const item of parsed.data) {
     if (seen.has(item.id)) {
       throw new DomainDataError(`${label}データにIDの重複があります: ${item.id}`);

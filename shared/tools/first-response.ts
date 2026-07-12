@@ -6,7 +6,7 @@ export const CASE_CATEGORIES = [
   "non_rebuildable",
 ] as const satisfies readonly string[];
 export const CaseCategorySchema = z.enum(CASE_CATEGORIES);
-export type CaseCategory = z.infer<typeof CaseCategorySchema>;
+export type CaseCategory = z.output<typeof CaseCategorySchema>;
 
 export const CASE_CATEGORY_LABELS = {
   inheritance: "相続・共有名義",
@@ -21,7 +21,7 @@ export const PRIORITY_LEVELS = [
   "needs_review",
 ] as const satisfies readonly string[];
 export const PriorityLevelSchema = z.enum(PRIORITY_LEVELS);
-export type PriorityLevel = z.infer<typeof PriorityLevelSchema>;
+export type PriorityLevel = z.output<typeof PriorityLevelSchema>;
 
 export const PRIORITY_LABELS = {
   safety_first: "安全確認を優先",
@@ -30,8 +30,13 @@ export const PRIORITY_LABELS = {
   needs_review: "要確認",
 } as const satisfies Record<PriorityLevel, string>;
 
+export const CaseIdSchema = z.string().regex(/^CASE-[A-Z]+-\d+$/u);
+export const StaffIdSchema = z.string().regex(/^STAFF-\d+$/u);
+export const ExpertIdSchema = z.string().regex(/^EXP-\d+$/u);
+export const GuideIdSchema = z.string().regex(/^GUIDE-[A-Z-]+-\d+$/u);
+
 export const CaseRecordSchema = z.object({
-  id: z.string().min(1),
+  id: CaseIdSchema,
   category: CaseCategorySchema,
   summary: z.string().min(1),
   keyIssues: z.array(z.string().min(1)).min(1),
@@ -40,23 +45,23 @@ export const CaseRecordSchema = z.object({
   initialResponse: z.string().min(1),
   outcome: z.string().min(1),
   cautions: z.string().min(1),
-  handlerId: z.string().min(1),
+  handlerId: StaffIdSchema,
   tags: z.array(z.string().min(1)).min(1),
 });
-export type CaseRecord = z.infer<typeof CaseRecordSchema>;
+export type CaseRecord = z.output<typeof CaseRecordSchema>;
 
 export const ExpertSchema = z.object({
-  id: z.string().min(1),
+  id: ExpertIdSchema,
   name: z.string().min(1),
   department: z.string().min(1),
   specialties: z.array(CaseCategorySchema).min(1),
   relatedCaseCount: z.number().int().nonnegative(),
   strengths: z.array(z.string().min(1)).min(1),
 });
-export type Expert = z.infer<typeof ExpertSchema>;
+export type Expert = z.output<typeof ExpertSchema>;
 
 export const GuideSchema = z.object({
-  id: z.string().min(1),
+  id: GuideIdSchema,
   title: z.string().min(1),
   area: z.string().min(1),
   targetCategories: z.array(CaseCategorySchema).min(1),
@@ -65,7 +70,7 @@ export const GuideSchema = z.object({
   expertConsultationConditions: z.array(z.string().min(1)).min(1),
   tags: z.array(z.string().min(1)).min(1),
 });
-export type Guide = z.infer<typeof GuideSchema>;
+export type Guide = z.output<typeof GuideSchema>;
 
 export const CaseQuerySchema = z.object({
   category: CaseCategorySchema.nullable().default(null),
@@ -74,7 +79,7 @@ export const CaseQuerySchema = z.object({
   propertyState: z.array(z.string()).default([]),
   rights: z.array(z.string()).default([]),
 });
-export type CaseQuery = z.infer<typeof CaseQuerySchema>;
+export type CaseQuery = z.output<typeof CaseQuerySchema>;
 
 export const MATCH_SIGNALS = [
   "category",
@@ -86,28 +91,28 @@ export const MATCH_SIGNALS = [
   "strength",
 ] as const satisfies readonly string[];
 export const MatchSignalSchema = z.enum(MATCH_SIGNALS);
-export type MatchSignal = z.infer<typeof MatchSignalSchema>;
+export type MatchSignal = z.output<typeof MatchSignalSchema>;
 
 export const MatchReasonSchema = z.object({
   signal: MatchSignalSchema,
   matched: z.array(z.string()),
   points: z.number(),
 });
-export type MatchReason = z.infer<typeof MatchReasonSchema>;
+export type MatchReason = z.output<typeof MatchReasonSchema>;
 
 export const SimilarCaseMatchSchema = z.object({
   case: CaseRecordSchema,
   score: z.number(),
   reasons: z.array(MatchReasonSchema),
 });
-export type SimilarCaseMatch = z.infer<typeof SimilarCaseMatchSchema>;
+export type SimilarCaseMatch = z.output<typeof SimilarCaseMatchSchema>;
 
 export const GuideMatchSchema = z.object({
   guide: GuideSchema,
   score: z.number(),
   reasons: z.array(MatchReasonSchema),
 });
-export type GuideMatch = z.infer<typeof GuideMatchSchema>;
+export type GuideMatch = z.output<typeof GuideMatchSchema>;
 
 export const ExpertMatchSchema = z.object({
   expert: ExpertSchema,
@@ -115,31 +120,31 @@ export const ExpertMatchSchema = z.object({
   reasons: z.array(MatchReasonSchema),
   recommendation: z.string(),
 });
-export type ExpertMatch = z.infer<typeof ExpertMatchSchema>;
+export type ExpertMatch = z.output<typeof ExpertMatchSchema>;
 
 export const SimilarCaseSearchResultSchema = z.object({
   matches: z.array(SimilarCaseMatchSchema),
   hasSufficientEvidence: z.boolean(),
 });
-export type SimilarCaseSearchResult = z.infer<typeof SimilarCaseSearchResultSchema>;
+export type SimilarCaseSearchResult = z.output<typeof SimilarCaseSearchResultSchema>;
 
 export const GuideSearchResultSchema = z.object({
   matches: z.array(GuideMatchSchema),
   hasSufficientEvidence: z.boolean(),
 });
-export type GuideSearchResult = z.infer<typeof GuideSearchResultSchema>;
+export type GuideSearchResult = z.output<typeof GuideSearchResultSchema>;
 
 export const ExpertSearchResultSchema = z.object({
   matches: z.array(ExpertMatchSchema),
   hasSufficientEvidence: z.boolean(),
 });
-export type ExpertSearchResult = z.infer<typeof ExpertSearchResultSchema>;
+export type ExpertSearchResult = z.output<typeof ExpertSearchResultSchema>;
 
 export const PriorityAssessmentSchema = z.object({
   level: PriorityLevelSchema,
   reasons: z.array(z.string()),
 });
-export type PriorityAssessment = z.infer<typeof PriorityAssessmentSchema>;
+export type PriorityAssessment = z.output<typeof PriorityAssessmentSchema>;
 
 export const CaseSummarySchema = z.object({
   category: CaseCategorySchema.nullable(),
@@ -150,13 +155,13 @@ export const CaseSummarySchema = z.object({
   currentProblem: z.string(),
   unknowns: z.array(z.string()),
 });
-export type CaseSummary = z.infer<typeof CaseSummarySchema>;
+export type CaseSummary = z.output<typeof CaseSummarySchema>;
 
 export const ReanalysisChangesSchema = z.object({
   resolvedUnknowns: z.array(z.string().min(1)).max(5),
   newFacts: z.array(z.string().min(1)).max(7),
 });
-export type ReanalysisChanges = z.infer<typeof ReanalysisChangesSchema>;
+export type ReanalysisChanges = z.output<typeof ReanalysisChangesSchema>;
 
 export const InitialReportSchema = z.object({
   caseSummary: CaseSummarySchema,
@@ -170,7 +175,7 @@ export const InitialReportSchema = z.object({
   followUpQuestion: z.string(),
   reanalysisChanges: ReanalysisChangesSchema.nullable(),
 });
-export type InitialReport = z.infer<typeof InitialReportSchema>;
+export type InitialReport = z.output<typeof InitialReportSchema>;
 
 const analyzeCaseOutputBaseShape = {
   analysisLabel: z.string(),
@@ -190,34 +195,34 @@ export const AnalyzeCaseOutputSchema = z.discriminatedUnion("analysisType", [
     report: InitialReportSchema.extend({ reanalysisChanges: ReanalysisChangesSchema }),
   }),
 ]);
-export type AnalyzeCaseOutput = z.infer<typeof AnalyzeCaseOutputSchema>;
+export type AnalyzeCaseOutput = z.output<typeof AnalyzeCaseOutputSchema>;
+
+export const ExpertReferenceSchema = ExpertSchema.pick({
+  department: true,
+  id: true,
+  name: true,
+});
 
 export const ConsultationDraftSchema = z.object({
-  recipient: z.object({
-    id: z.string().min(1),
-    name: z.string().min(1),
-    department: z.string().min(1),
-  }),
+  recipient: ExpertReferenceSchema,
   subject: z.string().min(1),
   body: z.string().min(1),
   priorityLevel: PriorityLevelSchema,
   priorityLabel: z.string().min(1),
   consultationPoints: z.array(z.string().min(1)),
-  referencedCaseIds: z.array(z.string().min(1)),
-  referencedGuideIds: z.array(z.string().min(1)),
+  referencedCaseIds: z.array(CaseIdSchema),
+  referencedGuideIds: z.array(GuideIdSchema),
   piiNotice: z.string().min(1),
 });
-export type ConsultationDraft = z.infer<typeof ConsultationDraftSchema>;
+export type ConsultationDraft = z.output<typeof ConsultationDraftSchema>;
 
 export const DraftConsultationOutputSchema = z.discriminatedUnion("ok", [
   z.object({ ok: z.literal(true), draft: ConsultationDraftSchema }),
   z.object({ ok: z.literal(false), message: z.string().min(1) }),
 ]);
-export type DraftConsultationOutput = z.infer<typeof DraftConsultationOutputSchema>;
+export type DraftConsultationOutput = z.output<typeof DraftConsultationOutputSchema>;
 
-export type EvidenceBundle = {
-  priority: PriorityAssessment;
-  similarCases: SimilarCaseSearchResult;
-  guides: GuideSearchResult;
-  experts: ExpertSearchResult;
-};
+export type EvidenceBundle = Pick<
+  InitialReport,
+  "experts" | "guides" | "priority" | "similarCases"
+>;

@@ -1,12 +1,14 @@
 import { Result } from "better-result";
 import type { z } from "zod";
-import type { ThreadRecord, ThreadSummary } from "@/shared/types/thread";
+import type { ThreadResponse } from "@/shared/types/thread";
 import type { AppDatabase } from "../db/client";
 import { db } from "../db/client";
 import type { Thread } from "../db/schema/threads";
 import {
   createThreadBodySchema,
+  type CreateThreadInput,
   patchThreadBodySchema,
+  type PatchThreadInput,
   threadIdParamsSchema,
 } from "../schemas/threads";
 import {
@@ -16,6 +18,7 @@ import {
   listThreadsForUser,
   StaleThreadStateError,
   ThreadLimitExceededError,
+  type ThreadRepositoryError,
   updateThreadForUser,
 } from "../utils/threads";
 import {
@@ -28,29 +31,33 @@ import {
 } from "./thread-errors";
 
 type ThreadOperation = ThreadApplicationError["operation"];
-type CreateThreadInput = z.input<typeof createThreadBodySchema>;
-
-type PatchThreadInput = z.input<typeof patchThreadBodySchema>;
-
-export interface ThreadRepository {
+export type ThreadRepository = {
   readonly create: (
-    userId: Thread["userId"],
-    input: z.output<typeof createThreadBodySchema>,
-  ) => Promise<ThreadRecord>;
-  readonly delete: (userId: Thread["userId"], id: Thread["id"]) => Promise<boolean>;
-  readonly get: (userId: Thread["userId"], id: Thread["id"]) => Promise<ThreadRecord | undefined>;
-  readonly list: (userId: Thread["userId"]) => Promise<ThreadSummary[]>;
+    userId: Parameters<typeof createThreadForUser>[0],
+    input: Parameters<typeof createThreadForUser>[1],
+  ) => ReturnType<typeof createThreadForUser>;
+  readonly delete: (
+    userId: Parameters<typeof deleteThreadForUser>[0],
+    id: Parameters<typeof deleteThreadForUser>[1],
+  ) => ReturnType<typeof deleteThreadForUser>;
+  readonly get: (
+    userId: Parameters<typeof getThreadForUser>[0],
+    id: Parameters<typeof getThreadForUser>[1],
+  ) => ReturnType<typeof getThreadForUser>;
+  readonly list: (
+    userId: Parameters<typeof listThreadsForUser>[0],
+  ) => ReturnType<typeof listThreadsForUser>;
   readonly update: (
-    userId: Thread["userId"],
-    id: Thread["id"],
-    patch: z.output<typeof patchThreadBodySchema>,
-    expectedRevision: number,
-  ) => Promise<ThreadRecord | undefined>;
-}
+    userId: Parameters<typeof updateThreadForUser>[0],
+    id: Parameters<typeof updateThreadForUser>[1],
+    patch: Parameters<typeof updateThreadForUser>[2],
+    expectedRevision: Parameters<typeof updateThreadForUser>[3],
+  ) => ReturnType<typeof updateThreadForUser>;
+};
 
-export interface ThreadApplicationDependencies {
+export type ThreadApplicationDependencies = {
   readonly repository: ThreadRepository;
-}
+};
 
 export function createThreadRepository(database: AppDatabase = db): ThreadRepository {
   return {
@@ -84,8 +91,8 @@ function validate<TSchema extends z.ZodType>(
 }
 
 function validateExpectedRevision(
-  revision: number,
-): Result<number, ValidationError> {
+  revision: Thread["stateVersion"],
+): Result<Thread["stateVersion"], ValidationError> {
   return Number.isSafeInteger(revision) && revision >= 0
     ? Result.ok(revision)
     : Result.err(new ValidationError({
@@ -99,24 +106,7 @@ function validateExpectedRevision(
 function repositoryFailure(
   cause: unknown,
   operation: ThreadOperation,
-  id?: string,
-): DatabaseError | ConflictError | LimitError {
-  if (cause instanceof ThreadLimitExceededError) {
-    return new LimitError({
-      message: "Thread limit exceeded",
-      operation,
-      reason: "thread-count",
-      retryable: false,
-    });
-  }
-  if (cause instanceof StaleThreadStateError) {
-    return new ConflictError({
-      id: id ?? "unknown",
-      message: "Thread state is stale",
-      operation,
-      reason: "stale-revision",
-    });
-  }
+): DatabaseError {
   return new DatabaseError({
     cause,
     message: "The data operation failed",
@@ -125,15 +115,56 @@ function repositoryFailure(
   });
 }
 
+function expectedRepositoryFailure(
+  error: ThreadRepositoryError,
+  operation: ThreadOperation,
+  id?: Thread["id"],
+): DatabaseError | ConflictError | LimitError {
+  if (error instanceof ThreadLimitExceededError) {
+    return new LimitError({
+      message: "Thread limit exceeded",
+      operation,
+      reason: "thread-count",
+      retryable: false,
+    });
+  }
+  if (error instanceof StaleThreadStateError) {
+    return new ConflictError({
+      id: id ?? error.threadId,
+      message: "Thread state is stale",
+      operation,
+      reason: "stale-revision",
+    });
+  }
+  return new DatabaseError({
+    cause: error,
+    message: "The data operation failed",
+    operation,
+    retryable: false,
+  });
+}
+
 function runRepository<T>(
   operation: ThreadOperation,
   task: () => Promise<T>,
-  id?: string,
 ) {
   return Result.tryPromise({
     try: task,
-    catch: cause => repositoryFailure(cause, operation, id),
+    catch: cause => repositoryFailure(cause, operation),
   });
+}
+
+async function runResultRepository<T>(
+  operation: ThreadOperation,
+  task: () => Promise<Result<T, ThreadRepositoryError>>,
+  id?: Thread["id"],
+): Promise<Result<T, ThreadApplicationError>> {
+  const result = await runRepository(operation, task);
+  if (Result.isError(result)) return Result.err(result.error);
+  if (Result.isError(result.value)) {
+    return Result.err(expectedRepositoryFailure(result.value.error, operation, id));
+  }
+  return Result.ok(result.value.value);
 }
 
 export function createThreadApplicationService(
@@ -142,7 +173,9 @@ export function createThreadApplicationService(
   return {
     async list(
       userId: Thread["userId"],
-    ): Promise<Result<{ readonly threads: ThreadSummary[] }, ThreadApplicationError>> {
+    ): Promise<Result<{
+      readonly threads: Awaited<ReturnType<ThreadRepository["list"]>>;
+    }, ThreadApplicationError>> {
       const threads = await runRepository(
         "list-threads",
         () => dependencies.repository.list(userId),
@@ -155,10 +188,10 @@ export function createThreadApplicationService(
     async get(
       userId: Thread["userId"],
       id: unknown,
-    ): Promise<Result<{ readonly thread: ThreadRecord }, ThreadApplicationError>> {
+    ): Promise<Result<ThreadResponse, ThreadApplicationError>> {
       return Result.gen(async function* () {
         const params = yield* validate(threadIdParamsSchema, { id }, "get-thread");
-        const thread = yield* Result.await(runRepository(
+        const thread = yield* Result.await(runResultRepository(
           "get-thread",
           () => dependencies.repository.get(userId, params.id),
           params.id,
@@ -178,10 +211,10 @@ export function createThreadApplicationService(
     async create(
       userId: Thread["userId"],
       input: CreateThreadInput,
-    ): Promise<Result<{ readonly thread: ThreadRecord }, ThreadApplicationError>> {
+    ): Promise<Result<ThreadResponse, ThreadApplicationError>> {
       return Result.gen(async function* () {
         const validInput = yield* validate(createThreadBodySchema, input, "create-thread");
-        const thread = yield* Result.await(runRepository(
+        const thread = yield* Result.await(runResultRepository(
           "create-thread",
           () => dependencies.repository.create(userId, validInput),
         ));
@@ -190,16 +223,16 @@ export function createThreadApplicationService(
     },
 
     async update(args: {
-      readonly expectedRevision: number;
+      readonly expectedRevision: Thread["stateVersion"];
       readonly id: unknown;
       readonly input: PatchThreadInput;
       readonly userId: Thread["userId"];
-    }): Promise<Result<{ readonly thread: ThreadRecord }, ThreadApplicationError>> {
+    }): Promise<Result<ThreadResponse, ThreadApplicationError>> {
       return Result.gen(async function* () {
         const params = yield* validate(threadIdParamsSchema, { id: args.id }, "update-thread");
         const validInput = yield* validate(patchThreadBodySchema, args.input, "update-thread");
         const revision = yield* validateExpectedRevision(args.expectedRevision);
-        const thread = yield* Result.await(runRepository(
+        const thread = yield* Result.await(runResultRepository(
           "update-thread",
           () => dependencies.repository.update(args.userId, params.id, validInput, revision),
           params.id,
@@ -225,7 +258,6 @@ export function createThreadApplicationService(
         const deleted = yield* Result.await(runRepository(
           "delete-thread",
           () => dependencies.repository.delete(userId, params.id),
-          params.id,
         ));
         if (!deleted) {
           return Result.err(new NotFoundError({

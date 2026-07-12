@@ -1,5 +1,7 @@
 import { fileURLToPath } from "node:url";
 import { createClient } from "@libsql/client";
+import { eq } from "drizzle-orm";
+import { Result } from "better-result";
 import { drizzle } from "drizzle-orm/libsql";
 import { migrate } from "drizzle-orm/libsql/migrator";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -89,20 +91,22 @@ function request(
 function setup(repositoryOverrides: Partial<ThreadRepository> = {}) {
   const stored = record();
   const repository = {
-    create: async (_userId, input) => record({
+    create: async (_userId, input) => Result.ok(record({
       id: THREAD_ID,
       title: input.title ?? "New chat",
       summary: input.summary ?? "",
-    }),
+    })),
     delete: async (userId, id) => userId === OWNER_ID && id === THREAD_ID,
-    get: async (userId, id) => userId === OWNER_ID && id === THREAD_ID ? stored : undefined,
+    get: async (userId, id) => Result.ok(
+      userId === OWNER_ID && id === THREAD_ID ? stored : undefined,
+    ),
     list: async userId => userId === OWNER_ID ? [stored] : [],
     update: async (userId, id, patch, expectedRevision) => {
-      if (userId !== OWNER_ID || id !== THREAD_ID) return undefined;
-      return record({
+      if (userId !== OWNER_ID || id !== THREAD_ID) return Result.ok(undefined);
+      return Result.ok(record({
         title: patch.title ?? stored.title,
         revision: expectedRevision + 1,
-      });
+      }));
     },
     ...repositoryOverrides,
   } as const satisfies ThreadRepository;
@@ -155,7 +159,11 @@ describe("Elysia thread API", () => {
 
     expect(response.status).toBe(401);
     expect(await response.json()).toEqual({
-      error: { code: "unauthorized", message: "Authentication is required" },
+      error: {
+        code: "unauthorized",
+        message: "Authentication is required",
+        retryable: false,
+      },
     });
   });
 
@@ -189,7 +197,11 @@ describe("Elysia thread API", () => {
     expect(malformed.status).toBe(400);
     expect(malformed.headers.get("cache-control")).toBe("no-store");
     expect(await malformed.json()).toEqual({
-      error: { code: "validation_error", message: "JSON body is invalid" },
+      error: {
+        code: "validation_error",
+        message: "JSON body is invalid",
+        retryable: false,
+      },
     });
   });
 
@@ -257,7 +269,10 @@ describe("Elysia thread API", () => {
   it("maps stale revisions to conflict", async () => {
     app = setup({
       update: async () => {
-        throw new StaleThreadStateError();
+        return Result.err(new StaleThreadStateError({
+          message: "Thread state is stale",
+          threadId: THREAD_ID,
+        }));
       },
     });
 
@@ -274,7 +289,9 @@ describe("Elysia thread API", () => {
   it("maps thread quotas to too many requests", async () => {
     app = setup({
       create: async () => {
-        throw new ThreadLimitExceededError();
+        return Result.err(new ThreadLimitExceededError({
+          message: "Thread limit exceeded",
+        }));
       },
     });
 
@@ -363,7 +380,7 @@ async function setupIntegrated() {
     repository: createThreadRepository(database),
   });
 
-  return { api, auth };
+  return { api, auth, database };
 }
 
 function cookiesFrom(response: Response): string {
@@ -455,6 +472,28 @@ describe("Elysia thread API with Better Auth and libSQL", () => {
 
     expect(thread.summary).toBe("父から相続した 空き家について 相談したい");
     expect(response.headers.get("etag")).toBe("\"0\"");
+  });
+
+  it("保存済みstateが壊れている場合は履歴なしとして返さず500にする", async () => {
+    const cookie = await signIn(integrated.auth, "198.51.100.19");
+    const { thread } = await createIntegratedThread(cookie, { title: "破損state確認" });
+    await integrated.database.update(schema.threads)
+      .set({ state: "{" })
+      .where(eq(schema.threads.id, thread.id));
+
+    const response = await integrated.api.handle(authenticatedRequest(
+      `/api/v1/threads/${thread.id}`,
+      { cookie },
+    ));
+
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({
+      error: {
+        code: "database_error",
+        message: "The request could not be completed",
+        retryable: false,
+      },
+    });
   });
 
   it("limits each anonymous user to 25 threads", async () => {

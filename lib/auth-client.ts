@@ -18,26 +18,21 @@ export class AnonymousAuthError extends TaggedError("AnonymousAuthError")<{
   status: number | null;
 }>() {}
 
-type AnonymousAuthSdkError = {
-  readonly message?: string;
-  readonly status?: number;
-  readonly statusText?: string;
-};
+type AnonymousSignInResult = Awaited<ReturnType<typeof authClient.signIn.anonymous>>;
+type AnonymousDeleteResult = Awaited<ReturnType<typeof authClient.deleteAnonymousUser>>;
+type AnonymousAuthSdkError = Partial<Pick<
+  NonNullable<AnonymousSignInResult["error"] | AnonymousDeleteResult["error"]>,
+  "message" | "status" | "statusText"
+>>;
 
 type AnonymousAuthSdkResponse = {
-  readonly data?: unknown;
   readonly error: AnonymousAuthSdkError | null;
 };
 
-export interface AnonymousAuthSdk {
+export type AnonymousAuthSdk = {
   readonly deleteAnonymousUser: () => Promise<AnonymousAuthSdkResponse>;
   readonly signInAnonymous: () => Promise<AnonymousAuthSdkResponse>;
-}
-
-export interface AnonymousAuthAdapter {
-  readonly deleteAnonymousUser: () => Promise<void>;
-  readonly signInAnonymous: () => Promise<void>;
-}
+};
 
 async function runAuthOperation(
   operation: AnonymousAuthOperation,
@@ -53,7 +48,7 @@ async function runAuthOperation(
       status: null,
     }),
   });
-  if (Result.isError(response)) return response;
+  if (Result.isError(response)) return Result.err(response.error);
   if (!response.value.error) return Result.ok(undefined);
 
   return Result.err(new AnonymousAuthError({
@@ -78,7 +73,7 @@ async function runAuthMutation(
 
 export function createAnonymousAuthAdapter(
   sdk: AnonymousAuthSdk,
-): AnonymousAuthAdapter {
+) {
   return {
     deleteAnonymousUser: () => runAuthMutation(runAuthOperation(
       "anonymous-user-delete",
@@ -90,6 +85,8 @@ export function createAnonymousAuthAdapter(
     )),
   };
 }
+
+export type AnonymousAuthAdapter = ReturnType<typeof createAnonymousAuthAdapter>;
 
 export const anonymousAuth = createAnonymousAuthAdapter({
   deleteAnonymousUser: () => authClient.deleteAnonymousUser(),

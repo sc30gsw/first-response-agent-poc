@@ -11,7 +11,7 @@ const SESSION_TTL_SECONDS = 60 * 60 * 24;
 
 type CreateAuthOptions<TSchema extends Record<string, unknown>> = {
   db: LibSQLDatabase<TSchema>;
-  schema: Record<string, unknown>;
+  schema: TSchema;
   baseURL?: string;
   secret?: string;
   trustedOrigins?: string[];

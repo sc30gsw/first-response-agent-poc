@@ -16,8 +16,15 @@ import { MAX_CHAT_MESSAGE_CHARS } from "@/shared/chat-limits";
 import {
   PersistedEveEventSchema,
   PersistedEveEventsSchema,
+  type EveInputResponder,
+  type EveInputSelection,
 } from "@/shared/eve-events";
-import type { ThreadRecord, ThreadState, ThreadSummary } from "@/shared/types/thread";
+import {
+  threadRecordToSummary,
+  type ThreadRecord,
+  type ThreadState,
+  type ThreadSummary,
+} from "@/shared/types/thread";
 import type { Expert } from "@/shared/tools/first-response";
 import { AccessibleTooltip } from "./accessible-tooltip";
 import { ToolResult } from "./tool-results";
@@ -91,14 +98,7 @@ export function EveChat({ thread, threads }: EveChatProps) {
       setSaveError("会話履歴を保存できませんでした。ページを閉じずに再度お試しください。");
     },
     onSuccess: (updatedThread) => {
-      const summary: ThreadSummary = {
-        createdAt: updatedThread.createdAt,
-        id: updatedThread.id,
-        revision: updatedThread.revision,
-        summary: updatedThread.summary,
-        title: updatedThread.title,
-        updatedAt: updatedThread.updatedAt,
-      };
+      const summary = threadRecordToSummary(updatedThread);
       revisionRef.current = updatedThread.revision;
       queryClient.setQueryData(threadQueryKeys.detail(thread.id), updatedThread);
       queryClient.setQueriesData<ThreadSummary[]>(
@@ -281,7 +281,10 @@ export function EveChat({ thread, threads }: EveChatProps) {
     }
   }
 
-  async function respondToRequest(requestId: string, optionId: string) {
+  async function respondToRequest(
+    requestId: EveInputSelection["requestId"],
+    optionId: EveInputSelection["optionId"],
+  ) {
     await sendAgentInput(
       { inputResponses: [{ requestId, optionId }] },
       "選択内容を送信できませんでした。再度お試しください。",
@@ -364,7 +367,7 @@ function ConversationHistory({
   readonly onAnnounce: (message: string) => void;
   readonly onFocusComposer: () => void;
   readonly onRequestConsultation: (expert: Expert) => Promise<void>;
-  readonly onRespond: (requestId: string, optionId: string) => Promise<void>;
+  readonly onRespond: EveInputResponder;
 }) {
   if (messages.length === 0) {
     return (
@@ -505,7 +508,7 @@ function ChatMessage({
 }: {
   readonly message: EveMessage;
   readonly canRespond: boolean;
-  readonly onRespond: (requestId: string, optionId: string) => Promise<void>;
+  readonly onRespond: EveInputResponder;
   readonly onRequestConsultation: (expert: Expert) => Promise<void>;
   readonly onFocusComposer: () => void;
   readonly onAnnounce: (message: string) => void;

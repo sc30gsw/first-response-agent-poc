@@ -1,4 +1,5 @@
 import { TaggedError } from "better-result";
+import type { ThreadId } from "@/shared/types/thread";
 
 type Operation =
   | "authenticate"
@@ -35,14 +36,14 @@ export class ValidationError extends TaggedError("ValidationError")<{
 }>() {}
 
 export class NotFoundError extends TaggedError("NotFoundError")<{
-  readonly id: string;
+  readonly id: ThreadId;
   readonly message: string;
   readonly operation: Operation;
   readonly resource: "thread";
 }>() {}
 
 export class ConflictError extends TaggedError("ConflictError")<{
-  readonly id: string;
+  readonly id: ThreadId;
   readonly message: string;
   readonly operation: Operation;
   readonly reason: "stale-revision";

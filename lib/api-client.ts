@@ -2,12 +2,18 @@ import { treaty } from "@elysiajs/eden";
 import { Result } from "better-result";
 import type { z } from "zod";
 import type { ApiApp } from "@/server/api/app";
-import { apiErrorSchema, threadApiSchemas } from "@/server/api/contracts";
-import type { ThreadRecord, ThreadSummary } from "@/shared/types/thread";
+import {
+  apiErrorSchema,
+  threadApiSchemas,
+  type ThreadApiError,
+} from "@/server/api/contracts";
+import type {
+  CreateThreadInput,
+  PatchThreadInput,
+} from "@/server/schemas/threads";
+import type { ThreadSummary } from "@/shared/types/thread";
 
-export type CreateThreadInput = z.input<typeof threadApiSchemas.createBody>;
-export type PatchThreadInput = z.input<typeof threadApiSchemas.patchBody>;
-type PublicApiErrorCode = z.infer<typeof apiErrorSchema>["error"]["code"];
+type PublicApiErrorCode = ThreadApiError["error"]["code"];
 
 export type ThreadApiErrorCode =
   | PublicApiErrorCode
@@ -42,42 +48,15 @@ export type ThreadTransportResult = {
   };
 };
 
-export interface ThreadApiTransport {
-  readonly create: (input: CreateThreadInput) => Promise<ThreadTransportResult>;
-  readonly delete: (id: ThreadSummary["id"]) => Promise<ThreadTransportResult>;
-  readonly get: (id: ThreadSummary["id"]) => Promise<ThreadTransportResult>;
-  readonly list: () => Promise<ThreadTransportResult>;
-  readonly update: (args: {
-    readonly expectedRevision: ThreadSummary["revision"];
-    readonly id: ThreadSummary["id"];
-    readonly input: PatchThreadInput;
-  }) => Promise<ThreadTransportResult>;
-}
+export type ThreadApiTransport = ReturnType<typeof createEdenThreadTransport>;
+export type ThreadApiClient = ReturnType<typeof createThreadApiClient>;
+type ThreadUpdateRequest = Readonly<{
+  expectedRevision: ThreadSummary["revision"];
+  id: ThreadSummary["id"];
+  input: PatchThreadInput;
+}>;
 
-export interface ThreadApiClient {
-  readonly create: (input: CreateThreadInput) => Promise<ThreadRecord>;
-  readonly delete: (id: ThreadSummary["id"]) => Promise<void>;
-  readonly get: (id: ThreadSummary["id"]) => Promise<ThreadRecord>;
-  readonly list: () => Promise<ThreadSummary[]>;
-  readonly update: (args: {
-    readonly expectedRevision: ThreadSummary["revision"];
-    readonly id: ThreadSummary["id"];
-    readonly input: PatchThreadInput;
-  }) => Promise<ThreadRecord>;
-}
-
-type EdenResult = {
-  readonly data: unknown;
-  readonly error: unknown;
-};
-
-const retryableStatusCodes = [502, 503, 504] as const satisfies readonly number[];
 const mutationRetryDelaysMs = [300, 900] as const satisfies readonly number[];
-
-function isRetryable(status: number, code: PublicApiErrorCode): boolean {
-  return code === "database_error"
-    || retryableStatusCodes.some(retryableStatus => retryableStatus === status);
-}
 
 function acceptResponse(
   result: ThreadTransportResult,
@@ -89,16 +68,16 @@ function acceptResponse(
     return Result.err(new ThreadApiClientError({
       code: "invalid_response",
       message: "API returned an invalid error response",
-      retryable: result.error.status >= 500,
+      retryable: false,
       status: result.error.status,
     }));
   }
 
-  const { code, message } = parsed.data.error;
+  const { code, message, retryable } = parsed.data.error;
   return Result.err(new ThreadApiClientError({
     code,
     message,
-    retryable: isRetryable(result.error.status, code),
+    retryable,
     status: result.error.status,
   }));
 }
@@ -145,19 +124,19 @@ async function execute<TSchema extends z.ZodType, TValue>(
   return result.value;
 }
 
-export function createThreadApiClient(transport: ThreadApiTransport): ThreadApiClient {
+export function createThreadApiClient(transport: ThreadApiTransport) {
   return {
-    create: input => execute(
+    create: (input: CreateThreadInput) => execute(
       () => transport.create(input),
       threadApiSchemas.threadResponse,
       result => result.thread,
     ),
-    delete: id => execute(
+    delete: (id: ThreadSummary["id"]) => execute(
       () => transport.delete(id),
       threadApiSchemas.deleteResponse,
       () => undefined,
     ),
-    get: id => execute(
+    get: (id: ThreadSummary["id"]) => execute(
       () => transport.get(id),
       threadApiSchemas.threadResponse,
       result => result.thread,
@@ -167,15 +146,15 @@ export function createThreadApiClient(transport: ThreadApiTransport): ThreadApiC
       threadApiSchemas.listResponse,
       result => result.threads,
     ),
-    update: args => execute(
+    update: (args: ThreadUpdateRequest) => execute(
       () => transport.update(args),
       threadApiSchemas.threadResponse,
       result => result.thread,
     ),
-  } as const satisfies ThreadApiClient;
+  } as const;
 }
 
-export function createEdenThreadTransport(baseUrl: string): ThreadApiTransport {
+export function createEdenThreadTransport(baseUrl: string) {
   const api = treaty<ApiApp>(baseUrl).api.v1;
 
   const normalizeError = (error: unknown): ThreadTransportResult["error"] => {
@@ -191,7 +170,10 @@ export function createEdenThreadTransport(baseUrl: string): ThreadApiTransport {
     };
   };
 
-  const normalize = async (response: Promise<EdenResult>): Promise<ThreadTransportResult> => {
+  const normalize = async <TResult extends {
+    readonly data: unknown;
+    readonly error: unknown;
+  }>(response: Promise<TResult>): Promise<ThreadTransportResult> => {
     const result = await response;
     return {
       data: result.data,
@@ -200,14 +182,14 @@ export function createEdenThreadTransport(baseUrl: string): ThreadApiTransport {
   };
 
   return {
-    create: input => normalize(api.threads.post(input)),
-    delete: id => normalize(api.threads({ id }).delete()),
-    get: id => normalize(api.threads({ id }).get()),
+    create: (input: CreateThreadInput) => normalize(api.threads.post(input)),
+    delete: (id: ThreadSummary["id"]) => normalize(api.threads({ id }).delete()),
+    get: (id: ThreadSummary["id"]) => normalize(api.threads({ id }).get()),
     list: () => normalize(api.threads.get()),
-    update: ({ expectedRevision, id, input }) => normalize(api.threads({ id }).patch(input, {
+    update: ({ expectedRevision, id, input }: ThreadUpdateRequest) => normalize(api.threads({ id }).patch(input, {
       headers: { "if-match": `"${expectedRevision}"` },
     })),
-  } as const satisfies ThreadApiTransport;
+  } as const;
 }
 
 /** Browser-facing query/mutation adapter. Server Components use the application service directly. */

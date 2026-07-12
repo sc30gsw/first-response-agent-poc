@@ -1,5 +1,5 @@
 import { and, count, desc, eq } from "drizzle-orm";
-import { Result } from "better-result";
+import { Result, TaggedError } from "better-result";
 import type { ThreadRecord, ThreadState, ThreadSummary } from "@/shared/types/thread";
 import { ThreadStateSchema } from "@/shared/eve-events";
 import { normalizeThreadSummary, truncateThreadTitle } from "@/shared/types/thread";
@@ -7,49 +7,59 @@ import { db, type AppDatabase } from "../db/client";
 import { threads, type Thread, type ThreadInsert } from "../db/schema/threads";
 import { revokeEveSessionsForThread } from "./eve-sessions";
 
-type Equals<A, B> = (<T>() => T extends A ? 1 : 2) extends (<T>() => T extends B ? 1 : 2)
-  ? true
-  : false;
-type Assert<T extends true> = T;
-
-// Compile-time SSoT guards: the wire DTO must stay in sync with the Drizzle row.
-type _ThreadSummaryMatchesRow = Assert<Equals<
-  Pick<ThreadSummary, "id" | "title" | "summary">,
-  Pick<Thread, "id" | "title" | "summary">
->>;
-type _ThreadRevisionMatchesRow = Assert<Equals<
-  ThreadSummary["revision"],
-  Thread["stateVersion"]
->>;
-
 const LIST_LIMIT = 50;
 export const MAX_THREADS_PER_USER = 25;
 
-export class ThreadLimitExceededError extends Error {
-  constructor() {
-    super("Thread limit exceeded");
-    this.name = "ThreadLimitExceededError";
-  }
-}
+export class ThreadStateParseError extends TaggedError("ThreadStateParseError")<{
+  readonly cause: unknown;
+  readonly message: string;
+  readonly reason: "invalid-json" | "invalid-shape";
+  readonly threadId: Thread["id"];
+}>() {}
 
-export class StaleThreadStateError extends Error {
-  constructor() {
-    super("Thread state is stale");
-    this.name = "StaleThreadStateError";
-  }
-}
+export class ThreadLimitExceededError extends TaggedError("ThreadLimitExceededError")<{
+  readonly message: string;
+}>() {}
 
-function parseThreadState(value: string | null): ThreadState | null {
-  if (!value) return null;
+export class StaleThreadStateError extends TaggedError("StaleThreadStateError")<{
+  readonly message: string;
+  readonly threadId: Thread["id"];
+}>() {}
 
-  const json = Result.try(() => JSON.parse(value) as unknown);
-  if (Result.isError(json)) return null;
+export type ThreadRepositoryError =
+  | StaleThreadStateError
+  | ThreadLimitExceededError
+  | ThreadStateParseError;
+
+function parseThreadState(
+  threadId: Thread["id"],
+  value: Thread["state"],
+): Result<ThreadState | null, ThreadStateParseError> {
+  if (!value) return Result.ok(null);
+
+  const json = Result.try({
+    try: () => JSON.parse(value) as unknown,
+    catch: cause => new ThreadStateParseError({
+      cause,
+      message: "Stored thread state is not valid JSON",
+      reason: "invalid-json",
+      threadId,
+    }),
+  });
+  if (Result.isError(json)) return Result.err(json.error);
 
   const parsed = ThreadStateSchema.safeParse(json.value);
-  return parsed.success ? parsed.data : null;
+  return parsed.success
+    ? Result.ok(parsed.data)
+    : Result.err(new ThreadStateParseError({
+        cause: parsed.error,
+        message: "Stored thread state has an invalid shape",
+        reason: "invalid-shape",
+        threadId,
+      }));
 }
 
-function serializeThreadState(state: ThreadState | undefined) {
+function serializeThreadState(state: ThreadState | undefined): Thread["state"] {
   return state ? JSON.stringify(state) : null;
 }
 
@@ -77,11 +87,14 @@ function rowToSummary(row: Thread): ThreadSummary {
   };
 }
 
-function rowToRecord(row: Thread): ThreadRecord {
-  return {
+function rowToRecord(row: Thread): Result<ThreadRecord, ThreadStateParseError> {
+  const state = parseThreadState(row.id, row.state);
+  if (Result.isError(state)) return Result.err(state.error);
+
+  return Result.ok({
     ...rowToSummary(row),
-    state: parseThreadState(row.state),
-  };
+    state: state.value,
+  });
 }
 
 export async function listThreadsForUser(
@@ -101,7 +114,7 @@ export async function getThreadForUser(
   userId: Thread["userId"],
   id: Thread["id"],
   database: AppDatabase = db,
-) {
+): Promise<Result<ThreadRecord | undefined, ThreadStateParseError>> {
   const [row] = await database.select()
     .from(threads)
     .where(and(
@@ -110,19 +123,21 @@ export async function getThreadForUser(
     ))
     .limit(1);
 
-  return row ? rowToRecord(row) : undefined;
+  return row ? rowToRecord(row) : Result.ok(undefined);
 }
 
 export async function createThreadForUser(
   userId: Thread["userId"],
   input: Partial<Pick<ThreadInsert, "title" | "summary">>,
   database: AppDatabase = db,
-) {
+): Promise<Result<ThreadRecord, ThreadLimitExceededError | ThreadStateParseError>> {
   const [total] = await database.select({ value: count() })
     .from(threads)
     .where(eq(threads.userId, userId));
   if ((total?.value ?? 0) >= MAX_THREADS_PER_USER) {
-    throw new ThreadLimitExceededError();
+    return Result.err(new ThreadLimitExceededError({
+      message: "Thread limit exceeded",
+    }));
   }
 
   const id = crypto.randomUUID();
@@ -136,27 +151,24 @@ export async function createThreadForUser(
   });
 
   const created = await getThreadForUser(userId, id, database);
-  if (!created) {
+  if (Result.isError(created)) return Result.err(created.error);
+  if (!created.value) {
     throw new Error("Failed to create thread");
   }
 
-  return created;
+  return Result.ok(created.value);
 }
 
 export async function updateThreadForUser(
   userId: Thread["userId"],
   id: Thread["id"],
-  patch: {
-    title?: Thread["title"];
-    state?: ThreadState;
-  },
-  expectedRevision: number,
+  patch: Partial<Pick<Thread, "title">> & { readonly state?: ThreadState },
+  expectedRevision: Thread["stateVersion"],
   database: AppDatabase = db,
-) {
+): Promise<Result<ThreadRecord | undefined, ThreadStateParseError | StaleThreadStateError>> {
   const existing = await getThreadForUser(userId, id, database);
-  if (!existing) {
-    return undefined;
-  }
+  if (Result.isError(existing)) return Result.err(existing.error);
+  if (!existing.value) return Result.ok(undefined);
 
   const [updated] = await database.update(threads)
     .set({
@@ -164,7 +176,7 @@ export async function updateThreadForUser(
       updatedAt: new Date(),
       ...(patch.title !== undefined ? { title: truncateThreadTitle(patch.title) } : {}),
       ...(patch.state !== undefined
-        ? { state: serializeThreadState(mergeThreadState(existing.state, patch.state)) }
+        ? { state: serializeThreadState(mergeThreadState(existing.value.state, patch.state)) }
         : {}),
     })
     .where(and(
@@ -175,7 +187,10 @@ export async function updateThreadForUser(
     .returning({ id: threads.id });
 
   if (!updated) {
-    throw new StaleThreadStateError();
+    return Result.err(new StaleThreadStateError({
+      message: "Thread state is stale",
+      threadId: id,
+    }));
   }
 
   return getThreadForUser(userId, id, database);

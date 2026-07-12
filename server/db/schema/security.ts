@@ -1,5 +1,8 @@
 import { sql } from "drizzle-orm";
 import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import type { EveSessionId } from "@/shared/eve-events";
+import type { User } from "./auth";
+import type { Thread } from "./threads";
 
 export const rateLimit = sqliteTable("rateLimit", {
   id: text("id").primaryKey(),
@@ -21,9 +24,9 @@ export const agentRunLeases = sqliteTable("agent_run_leases", {
 });
 
 export const eveSessionBindings = sqliteTable("eve_session_bindings", {
-  sessionId: text("session_id").primaryKey(),
-  userId: text("user_id").notNull(),
-  threadId: text("thread_id").notNull(),
+  sessionId: text("session_id").$type<EveSessionId>().primaryKey(),
+  userId: text("user_id").$type<User["id"]>().notNull(),
+  threadId: text("thread_id").$type<Thread["id"]>().notNull(),
   createdAt: integer("created_at", { mode: "timestamp_ms" })
     .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
     .notNull(),
@@ -34,3 +37,6 @@ export const eveSessionBindings = sqliteTable("eve_session_bindings", {
   index("eve_session_bindings_user_idx").on(table.userId),
   index("eve_session_bindings_thread_idx").on(table.threadId),
 ]);
+
+export type AgentRunLease = typeof agentRunLeases.$inferSelect;
+export type EveSessionBinding = typeof eveSessionBindings.$inferSelect;

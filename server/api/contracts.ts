@@ -14,8 +14,10 @@ export const apiErrorSchema = z.object({
       "validation_error",
     ]),
     message: z.string(),
+    retryable: z.boolean(),
   }),
 });
+export type ThreadApiError = z.output<typeof apiErrorSchema>;
 
 export const threadApiSchemas = {
   createBody: createThreadBodySchema,
@@ -30,7 +32,6 @@ export const threadApiSchemas = {
   patchBody: patchThreadBodySchema,
   threadResponse: ThreadResponseSchema,
 } as const satisfies Record<string, z.ZodType>;
-
 export const threadErrorResponses = {
   400: threadApiSchemas.error,
   401: threadApiSchemas.error,

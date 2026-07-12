@@ -1,5 +1,6 @@
 import { Result } from "better-result";
 import type { User } from "../db/schema/auth";
+import type { Thread } from "../db/schema/threads";
 import {
   DatabaseError,
   ForbiddenError,
@@ -56,7 +57,7 @@ export function validateMutationOrigin(
 
 export function parseIfMatchRevision(
   value: string | null,
-): Result<number, ValidationError> {
+): Result<Thread["stateVersion"], ValidationError> {
   const match = /^"(0|[1-9]\d*)"$/u.exec(value ?? "");
   const revision = match ? Number(match[1]) : Number.NaN;
 

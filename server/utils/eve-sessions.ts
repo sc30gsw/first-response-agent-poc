@@ -1,9 +1,11 @@
 import { and, eq, isNull } from "drizzle-orm";
 import { db, type AppDatabase } from "../db/client";
-import { eveSessionBindings } from "../db/schema/security";
+import {
+  eveSessionBindings,
+  type EveSessionBinding,
+} from "../db/schema/security";
 
 type EveSessionDatabase = Pick<AppDatabase, "update">;
-type EveSessionBinding = typeof eveSessionBindings.$inferSelect;
 
 function revocationTimestamp() {
   return new Date();

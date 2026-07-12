@@ -1,21 +1,32 @@
 import { z } from "zod";
 import { ThreadStateSchema } from "@/shared/eve-events";
+import {
+  ThreadIdSchema,
+  ThreadSummaryTextSchema,
+  ThreadTitleSchema,
+} from "@/shared/types/thread";
 
 export const threadIdParamsSchema = z.object({
-  id: z.string().trim().uuid("Thread id must be a UUID"),
+  id: ThreadIdSchema,
 });
+export type ThreadIdParamsInput = z.input<typeof threadIdParamsSchema>;
+export type ThreadIdParams = z.output<typeof threadIdParamsSchema>;
 
 export const createThreadBodySchema = z.object({
-  title: z.string().trim().min(1).max(200).optional(),
-  summary: z.string().trim().max(280).optional(),
+  title: ThreadTitleSchema.optional(),
+  summary: ThreadSummaryTextSchema.optional(),
 });
+export type CreateThreadInput = z.input<typeof createThreadBodySchema>;
+export type CreateThreadData = z.output<typeof createThreadBodySchema>;
 
 export const threadStateSchema = ThreadStateSchema;
 
 export const patchThreadBodySchema = z.object({
-  title: z.string().trim().min(1).max(200).optional(),
+  title: ThreadTitleSchema.optional(),
   state: threadStateSchema.optional(),
 }).refine(
   (value) => value.title !== undefined || value.state !== undefined,
   "At least one patch field is required",
 );
+export type PatchThreadInput = z.input<typeof patchThreadBodySchema>;
+export type PatchThreadData = z.output<typeof patchThreadBodySchema>;

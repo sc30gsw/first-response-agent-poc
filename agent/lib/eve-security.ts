@@ -2,11 +2,17 @@ import { createHmac } from "node:crypto";
 import { Result, TaggedError, matchError } from "better-result";
 import type { AuthFn } from "eve/channels/auth";
 import type { EveChannelEvents } from "eve/channels/eve";
+import type { InputResponse } from "eve/client";
 import type { SessionAuthContext } from "eve/context";
 import { and, eq, lt, lte, sql } from "drizzle-orm";
 import { z } from "zod";
 import { MAX_CHAT_MESSAGE_CHARS } from "@/shared/chat-limits";
-import { ThreadStateSchema } from "@/shared/eve-events";
+import {
+  EveSessionIdSchema,
+  ThreadStateSchema,
+  type EveSessionId,
+} from "@/shared/eve-events";
+import { ThreadIdSchema } from "@/shared/types/thread";
 import type { AppDatabase } from "@/server/db/client";
 import { db } from "@/server/db/client";
 import type { User } from "@/server/db/schema/auth";
@@ -14,27 +20,27 @@ import {
   agentRateLimits,
   agentRunLeases,
   eveSessionBindings,
+  type AgentRunLease,
+  type EveSessionBinding,
 } from "@/server/db/schema/security";
 import { threads, type Thread } from "@/server/db/schema/threads";
 import { readJsonBody, validateSameOrigin } from "@/server/utils/http-security";
 
-const threadIdSchema = z.string().trim().uuid();
-const eveSessionIdSchema = z.string().min(1).max(256);
 const SESSION_ROUTE = /^\/eve\/v1\/session(?:\/([^/]+)(?:\/stream)?)?\/?$/u;
 const nonBlankStringSchema = z.string().min(1).refine((value) => value.trim().length > 0);
 const textPartSchema = z.object({
   type: z.literal("text"),
   text: nonBlankStringSchema,
 });
-const inputResponseSchema = z.object({
+const inputResponseSchema = z.strictObject({
   requestId: nonBlankStringSchema.max(256),
   optionId: nonBlankStringSchema.max(256).optional(),
   text: nonBlankStringSchema.optional(),
 }).refine(
   response => response.optionId !== undefined || response.text !== undefined,
   "An option or text response is required",
-);
-const turnPayloadSchema = z.looseObject({
+) satisfies z.ZodType<InputResponse>;
+const turnPayloadSchema = z.strictObject({
   continuationToken: z.string().min(1).optional(),
   inputResponses: z.array(inputResponseSchema).min(1).max(10).optional(),
   message: z.union([
@@ -155,8 +161,8 @@ function readAttribute(auth: SessionAuthContext | null, name: string) {
 }
 
 function sessionIdFromThreadState(
-  state: string | null,
-): Result<string | null, EveThreadStateError> {
+  state: Thread["state"],
+): Result<EveSessionId | null, EveThreadStateError> {
   if (!state) return Result.ok(null);
 
   const json = Result.try({
@@ -258,7 +264,7 @@ function requestIp(request: Request, userId: User["id"]) {
 }
 
 function validateThreadId(value: string | null) {
-  const parsed = threadIdSchema.safeParse(value);
+  const parsed = ThreadIdSchema.safeParse(value);
   return parsed.success
     ? Result.ok(parsed.data)
     : Result.err(new EveAuthorizationError({
@@ -279,7 +285,7 @@ function decodeEveSessionId(value: string) {
   });
   if (Result.isError(decoded)) return Result.err(decoded.error);
 
-  const parsed = eveSessionIdSchema.safeParse(decoded.value);
+  const parsed = EveSessionIdSchema.safeParse(decoded.value);
   return parsed.success
     ? Result.ok(parsed.data)
     : Result.err(new EveRequestError({
@@ -458,7 +464,7 @@ export function createEveSecurity(options: CreateEveSecurityOptions) {
   }
 
   async function bindSessionResult(
-    sessionId: string,
+    sessionId: EveSessionBinding["sessionId"],
     auth: SessionAuthContext | null,
   ) {
     const threadId = readAttribute(auth, "threadId");
@@ -537,7 +543,7 @@ export function createEveSecurity(options: CreateEveSecurityOptions) {
   }
 
   async function verifySessionBinding(
-    sessionId: string,
+    sessionId: EveSessionBinding["sessionId"],
     userId: User["id"],
     threadId: Thread["id"],
     threadState: Thread["state"],
@@ -646,7 +652,7 @@ export function createEveSecurity(options: CreateEveSecurityOptions) {
         ));
       }
 
-      let leaseId: string | null = null;
+      let leaseId: AgentRunLease["leaseId"] | null = null;
       if (request.method === "POST") {
         if (Result.isError(validateSameOrigin(request))) {
           yield* new EveAuthorizationError({
@@ -715,7 +721,7 @@ export function createEveSecurity(options: CreateEveSecurityOptions) {
   }
 
   async function bindSessionFromAuth(
-    sessionId: string,
+    sessionId: EveSessionBinding["sessionId"],
     auth: SessionAuthContext | null,
   ) {
     const result = await bindSessionResult(sessionId, auth);

@@ -3,6 +3,7 @@
 import { Result } from "better-result";
 import type { EveDynamicToolPart } from "eve/react";
 import { useId, useState } from "react";
+import type { EveInputResponder } from "@/shared/eve-events";
 import type {
   AnalyzeCaseOutput,
   DraftConsultationOutput,
@@ -50,7 +51,7 @@ export function ToolResult({
 }: {
   readonly part: EveDynamicToolPart;
   readonly canRespond: boolean;
-  readonly onRespond: (requestId: string, optionId: string) => Promise<void>;
+  readonly onRespond: EveInputResponder;
   readonly onRequestConsultation: (expert: Expert) => Promise<void>;
   readonly onFocusComposer: () => void;
   readonly onAnnounce: (message: string) => void;

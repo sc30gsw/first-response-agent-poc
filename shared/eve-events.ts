@@ -1,8 +1,17 @@
-import type { HandleMessageStreamEvent } from "eve/client";
+import type { HandleMessageStreamEvent, InputResponse } from "eve/client";
 import { z } from "zod";
 
 const jsonValueSchema = z.json();
 const jsonObjectSchema = z.record(z.string(), jsonValueSchema);
+export const EveSessionIdSchema = z.string().trim().min(1).max(256);
+export type EveSessionId = z.output<typeof EveSessionIdSchema>;
+export type EveInputSelection = Readonly<
+  Required<Pick<InputResponse, "optionId" | "requestId">>
+>;
+export type EveInputResponder = (
+  requestId: EveInputSelection["requestId"],
+  optionId: EveInputSelection["optionId"],
+) => Promise<void>;
 const metaShape = {
   meta: z.object({ at: z.string().min(1) }).optional(),
 };
@@ -228,7 +237,7 @@ export const PersistedEveEventSchema = z.discriminatedUnion("type", [
     data: z.object({
       ...turnCoordinatesShape,
       modelId: z.string(),
-      sessionId: z.string(),
+      sessionId: EveSessionIdSchema,
       usageInputTokens: z.number().nullable(),
     }),
     ...metaShape,
@@ -238,7 +247,7 @@ export const PersistedEveEventSchema = z.discriminatedUnion("type", [
     data: z.object({
       ...turnCoordinatesShape,
       modelId: z.string(),
-      sessionId: z.string(),
+      sessionId: EveSessionIdSchema,
     }),
     ...metaShape,
   }),
@@ -253,7 +262,7 @@ export const PersistedEveEventSchema = z.discriminatedUnion("type", [
       code: z.string(),
       details: jsonObjectSchema.optional(),
       message: z.string(),
-      sessionId: z.string(),
+      sessionId: EveSessionIdSchema,
     }),
     ...metaShape,
   }),
@@ -267,7 +276,7 @@ export const PersistedEveEventsSchema = z.array(PersistedEveEventSchema);
 
 export const ThreadStateSchema = z.object({
   session: z.object({
-    sessionId: z.string().trim().min(1).optional(),
+    sessionId: EveSessionIdSchema.optional(),
     continuationToken: z.string().trim().min(1).optional(),
     streamIndex: z.number().int().nonnegative(),
   }),

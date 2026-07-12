@@ -79,6 +79,7 @@ describe("thread API client", () => {
             error: {
               code: "conflict",
               message: "The thread was updated by another request",
+              retryable: false,
             },
           },
         },
@@ -106,7 +107,11 @@ describe("thread API client", () => {
         error: {
           status: 500,
           value: {
-            error: { code: "database_error", message: "Unavailable" },
+            error: {
+              code: "database_error",
+              message: "Unavailable",
+              retryable: true,
+            },
           },
         },
       }),
@@ -124,6 +129,73 @@ describe("thread API client", () => {
       code: "network_error",
       retryable: true,
       status: 0,
+    });
+  });
+
+  it("does not retry a database error explicitly classified as permanent", async () => {
+    const api = createThreadApiClient(transport({
+      get: vi.fn().mockResolvedValue({
+        data: null,
+        error: {
+          status: 500,
+          value: {
+            error: {
+              code: "database_error",
+              message: "Stored state is invalid",
+              retryable: false,
+            },
+          },
+        },
+      }),
+    }));
+
+    const operation = api.get(THREAD_ID);
+    await expect(operation).rejects.toMatchObject({
+      code: "database_error",
+      retryable: false,
+      status: 500,
+    });
+  });
+
+  it("preserves an explicit non-retryable classification for gateway statuses", async () => {
+    const api = createThreadApiClient(transport({
+      get: vi.fn().mockResolvedValue({
+        data: null,
+        error: {
+          status: 503,
+          value: {
+            error: {
+              code: "database_error",
+              message: "Stored state requires repair",
+              retryable: false,
+            },
+          },
+        },
+      }),
+    }));
+
+    await expect(api.get(THREAD_ID)).rejects.toMatchObject({
+      code: "database_error",
+      retryable: false,
+      status: 503,
+    });
+  });
+
+  it("does not infer retryability from an invalid server error payload", async () => {
+    const api = createThreadApiClient(transport({
+      get: vi.fn().mockResolvedValue({
+        data: null,
+        error: {
+          status: 503,
+          value: { message: "unstructured upstream failure" },
+        },
+      }),
+    }));
+
+    await expect(api.get(THREAD_ID)).rejects.toMatchObject({
+      code: "invalid_response",
+      retryable: false,
+      status: 503,
     });
   });
 
