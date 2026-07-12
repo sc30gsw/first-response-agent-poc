@@ -4,7 +4,7 @@ import type { AuthFn } from "eve/channels/auth";
 import type { EveChannelEvents } from "eve/channels/eve";
 import type { InputResponse } from "eve/client";
 import type { SessionAuthContext } from "eve/context";
-import { and, eq, gt, lt, lte, sql } from "drizzle-orm";
+import { and, eq, lt, lte, sql } from "drizzle-orm";
 import { z } from "zod";
 import { MAX_CHAT_MESSAGE_CHARS } from "@/shared/chat-limits";
 import {
@@ -27,8 +27,7 @@ import { threads, type Thread } from "@/server/db/schema/threads";
 import { readJsonBody, validateSameOrigin } from "@/server/utils/http-security";
 
 const SESSION_ROUTE = /^\/eve\/v1\/session(?:\/([^/]+)(?:\/stream)?)?\/?$/u;
-const SESSION_BINDING_POLL_INTERVAL_MS = 50;
-const SESSION_BINDING_MAX_WAIT_MS = 5_000;
+const SESSION_BINDING_RETRY_DELAYS_MS = [50, 100, 200, 400, 800, 1_600] as const;
 const nonBlankStringSchema = z.string().min(1).refine((value) => value.trim().length > 0);
 const textPartSchema = z.object({
   type: z.literal("text"),
@@ -113,7 +112,6 @@ type EveDatabaseOperation =
   | "bind-session"
   | "clean-rate-limits"
   | "consume-rate-limit"
-  | "find-run-lease"
   | "find-session-binding"
   | "find-thread"
   | "release-lease"
@@ -570,37 +568,6 @@ export function createEveSecurity(options: CreateEveSecurityOptions) {
       let binding = initialBindings[0];
       const storedSessionId = yield* sessionIdFromThreadState(threadState);
 
-      if (!binding) {
-        const activeLeases = yield* Result.await(runDatabase(
-          "find-run-lease",
-          () => database.select({ leaseId: agentRunLeases.leaseId })
-            .from(agentRunLeases)
-            .where(and(
-              eq(agentRunLeases.subjectKey, keyedHash(`lease:${userId}`)),
-              gt(agentRunLeases.expiresAt, new Date()),
-            ))
-            .limit(1),
-        ));
-
-        // Vercel can finish the turn and release its lease before the browser
-        // opens the stream. A matching persisted session id is safe evidence
-        // to wait for the event hook, but never grants ownership by itself.
-        if (activeLeases[0] || storedSessionId === sessionId) {
-          const attempts = SESSION_BINDING_MAX_WAIT_MS / SESSION_BINDING_POLL_INTERVAL_MS;
-          for (let attempt = 0; attempt < attempts && !binding; attempt += 1) {
-            await new Promise(resolve => setTimeout(resolve, SESSION_BINDING_POLL_INTERVAL_MS));
-            const pendingBindings = yield* Result.await(runDatabase(
-              "find-session-binding",
-              () => database.select()
-                .from(eveSessionBindings)
-                .where(eq(eveSessionBindings.sessionId, sessionId))
-                .limit(1),
-            ));
-            binding = pendingBindings[0];
-          }
-        }
-      }
-
       // Migration-created rows keep revision 0. Once the client has patched a
       // thread, its mutable state must never be trusted to claim an Eve id.
       if (!binding && threadRevision === 0 && storedSessionId === sessionId) {
@@ -618,6 +585,22 @@ export function createEveSecurity(options: CreateEveSecurityOptions) {
             .limit(1),
         ));
         binding = backfilledBindings[0];
+      }
+
+      // Vercel may return the session id before its session.started hook has
+      // persisted the binding. Poll with a small exponential backoff, but only
+      // an actual binding row can grant access.
+      for (const delayMs of SESSION_BINDING_RETRY_DELAYS_MS) {
+        if (binding) break;
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+        const pendingBindings = yield* Result.await(runDatabase(
+          "find-session-binding",
+          () => database.select()
+            .from(eveSessionBindings)
+            .where(eq(eveSessionBindings.sessionId, sessionId))
+            .limit(1),
+        ));
+        binding = pendingBindings[0];
       }
 
       if (

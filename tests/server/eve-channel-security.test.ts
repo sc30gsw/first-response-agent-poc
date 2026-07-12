@@ -290,7 +290,7 @@ describe("Eve WebチャネルのHTTPセキュリティ", () => {
     expect(response.status).toBe(200);
   });
 
-  it("作成直後のstreamは実行中leaseを手掛かりに所有者紐付けを待つ", async () => {
+  it("作成直後のstreamは所有者紐付けの非同期保存を待つ", async () => {
     const cookie = await signIn("198.51.100.66");
     const threadId = await createThread(cookie);
     const sessionId = "binding-race-session";
