@@ -1,5 +1,3 @@
-"use client";
-
 import { Result } from "better-result";
 import type { EveDynamicToolPart } from "eve/react";
 import { useId, useState } from "react";
