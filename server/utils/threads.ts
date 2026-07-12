@@ -196,13 +196,23 @@ export async function updateThreadForUser(
       eq(threads.stateVersion, expectedRevision),
     ));
 
-  const updated = await getThreadForUser(userId, id, database);
+  let updated = await getThreadForUser(userId, id, database);
   if (Result.isError(updated)) return Result.err(updated.error);
 
   if (updateResult.rowsAffected === 0) {
     // Turso can report zero affected rows for an UPDATE that was committed.
-    // Accept that response only when the stored revision and every requested
-    // value prove this exact patch was applied; a competing write still fails.
+    // Its immediately following read may also briefly see the previous
+    // revision, so retry only while that exact stale revision is visible.
+    for (const delayMs of [25, 50, 100, 200, 400] as const) {
+      if (updated.value?.revision !== expectedRevision) break;
+      await new Promise(resolve => setTimeout(resolve, delayMs));
+      updated = await getThreadForUser(userId, id, database);
+      if (Result.isError(updated)) return Result.err(updated.error);
+    }
+
+    // Accept a zero-row response only when the stored revision and every
+    // requested value prove this exact patch was applied. A competing write
+    // with different data still fails the optimistic concurrency check.
     const updateWasApplied = updated.value?.revision === expectedRevision + 1
       && updated.value.title === nextTitle
       && updated.value.summary === nextSummary
