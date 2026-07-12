@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
+import { z } from "zod";
 import {
   AnalyzeCaseOutputSchema,
   DraftConsultationOutputSchema,
   ExpertSearchResultSchema,
 } from "../../shared/tools/first-response";
+import { AnalyzeCaseInputSchema } from "../../agent/tools/analyze_case";
 
 const EMPTY_EVIDENCE = {
   matches: [],
@@ -40,6 +42,9 @@ function report(reanalysisChanges: null | {
 }
 
 describe("初動分析ツールの公開出力契約", () => {
+  it("AI Gateway向け入力スキーマのルートがobjectである", () => {
+    expect(z.toJSONSchema(AnalyzeCaseInputSchema).type).toBe("object");
+  });
   it("再分析では解消済みの不明点と新たに判明した事実を構造化して受け付ける", () => {
     const result = AnalyzeCaseOutputSchema.parse({
       analysisType: "reanalysis",

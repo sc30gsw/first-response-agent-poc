@@ -38,29 +38,27 @@ const analysisInputBaseShape = {
   followUpQuestion: z.string().min(1).describe("One next question for the user. Write it in Japanese."),
 };
 
+export const AnalyzeCaseInputSchema = z.object({
+  analysisType: z
+    .enum(["initial", "reanalysis"])
+    .describe("Use initial for a new inquiry and reanalysis after the user provides additional information."),
+  ...analysisInputBaseShape,
+  resolvedUnknowns: z
+    .array(z.string().min(1))
+    .max(5)
+    .default([])
+    .describe("For reanalysis, previously unknown items resolved by the user's additional information. Write each item in Japanese; otherwise use an empty array."),
+  newFacts: z
+    .array(z.string().min(1))
+    .max(7)
+    .default([])
+    .describe("For reanalysis, new facts learned from the user's additional information. Write each item in Japanese; otherwise use an empty array."),
+});
+
 export default defineTool({
   description:
     "Create an initial-response report from structured case information. This tool deterministically returns priority, similar cases, internal guides, and expert candidates. Do not alter its ranking, scores, or evidence. Use it for both a new inquiry's initial analysis and a reanalysis after additional information.",
-  inputSchema: z.discriminatedUnion("analysisType", [
-    z.object({
-      analysisType: z.literal("initial"),
-      ...analysisInputBaseShape,
-    }),
-    z.object({
-      analysisType: z.literal("reanalysis"),
-      ...analysisInputBaseShape,
-      resolvedUnknowns: z
-        .array(z.string().min(1))
-        .max(5)
-        .default([])
-        .describe("Previously unknown items resolved by the user's additional information. Write each item in Japanese."),
-      newFacts: z
-        .array(z.string().min(1))
-        .max(7)
-        .default([])
-        .describe("New facts learned from the user's additional information. Write each item in Japanese."),
-    }),
-  ]),
+  inputSchema: AnalyzeCaseInputSchema,
   outputSchema: AnalyzeCaseOutputSchema,
   execute(input) {
     const query = parseCaseQuery({
