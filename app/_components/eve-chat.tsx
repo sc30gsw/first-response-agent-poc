@@ -36,9 +36,6 @@ const INPUT_EXAMPLES = [
   "接道状況は不明で、売却までの期限もまだ決まっていません。",
 ] as const satisfies readonly string[];
 
-const REANALYSIS_CLIENT_CONTEXT =
-  "このメッセージは案件の追加情報です。同じターンの最初のアクションとして analyze_case を analysisType: reanalysis で呼び出し、ツール結果が返る前に確認文や『再分析します』という予告を出さないでください。";
-
 const EYEBROW = "mb-3 text-[0.8rem] font-bold tracking-[0.12em] text-[#176c67]";
 const PRIMARY_BUTTON = "inline-flex min-h-11 items-center justify-center gap-[22px] rounded-[10px] bg-navy px-[18px] py-2.5 font-bold text-white hover:bg-navy-deep disabled:cursor-wait disabled:opacity-[.62]";
 const SECONDARY_BUTTON = "min-h-10 cursor-pointer rounded-lg border border-control-line bg-white px-3.5 py-2 font-extrabold text-navy hover:border-teal hover:bg-teal-pale disabled:cursor-wait disabled:opacity-[.62]";
@@ -173,17 +170,14 @@ export function EveChat({ thread, threads }: EveChatProps) {
     const message = draft.trim();
     if (!message || isBusy) return;
 
-    setAnnouncement("");
+    setAnnouncement("初動支援AIが相談内容を整理しています。");
     pendingComposerMessageRef.current = message;
     expectsAnalysisActionRef.current = true;
     receivedAnalysisActionRef.current = false;
     const isFirstMessage = persistence.beginFirstMessageSummaryIfNeeded(message, normalizeThreadSummary);
     setDraft("");
     const sent = await sendAgentInput(
-      {
-        message,
-        ...(!isFirstMessage && { clientContext: REANALYSIS_CLIENT_CONTEXT }),
-      },
+      { message },
       "メッセージを送信できませんでした。再度お試しください。",
     );
     if (sent) {
@@ -230,7 +224,6 @@ export function EveChat({ thread, threads }: EveChatProps) {
           announcement={announcement}
           canRetrySave={persistence.canRetrySave}
           hasAgentError={Boolean(agent.error)}
-          isBusy={isBusy}
           onRetrySave={persistence.retryStateSave}
           saveError={persistence.saveError}
           sendError={sendError}
@@ -303,11 +296,12 @@ function ConversationHistory({
 
   return (
     <ol className="mx-auto my-9 grid w-full max-w-[780px] list-none gap-7 p-0" role="list">
-      {messages.map(message => (
+      {messages.map((message, index) => (
         <ChatMessage
           key={message.id}
           message={message}
           canRespond={canRespond}
+          isPending={!canRespond && index === messages.length - 1}
           onAnnounce={onAnnounce}
           onFocusComposer={onFocusComposer}
           onRequestConsultation={onRequestConsultation}
@@ -322,7 +316,6 @@ function ChatFeedback({
   announcement,
   canRetrySave,
   hasAgentError,
-  isBusy,
   onRetrySave,
   saveError,
   sendError,
@@ -330,7 +323,6 @@ function ChatFeedback({
   readonly announcement: string;
   readonly canRetrySave: boolean;
   readonly hasAgentError: boolean;
-  readonly isBusy: boolean;
   readonly onRetrySave: () => void;
   readonly saveError: string | null;
   readonly sendError: string | null;
@@ -341,11 +333,6 @@ function ChatFeedback({
       {hasAgentError || sendError ? (
         <p className="mx-auto my-2 w-full max-w-[780px] text-[0.82rem] font-bold text-danger" role="alert">
           {sendError ?? "処理に失敗しました。内容を確認して再度お試しください。"}
-        </p>
-      ) : null}
-      {isBusy && !hasAgentError && !sendError ? (
-        <p className="mx-auto my-2 w-full max-w-[780px] rounded-lg border border-[#a8cbc7] bg-teal-pale px-4 py-3 text-[0.82rem] font-bold text-[#176c67]" aria-atomic="true" aria-live="polite" role="status">
-          初動支援AIが内容を分析しています。結果が表示されるまで、そのままお待ちください。
         </p>
       ) : null}
       {saveError ? (
@@ -432,6 +419,7 @@ function ChatComposer({ draft, inputRef, isBusy, onDraftChange, onStop, onSubmit
 function ChatMessage({
   message,
   canRespond,
+  isPending,
   onRespond,
   onRequestConsultation,
   onFocusComposer,
@@ -439,17 +427,34 @@ function ChatMessage({
 }: {
   readonly message: EveMessage;
   readonly canRespond: boolean;
+  readonly isPending: boolean;
   readonly onRespond: EveInputResponder;
   readonly onRequestConsultation: (expert: Expert) => Promise<void>;
   readonly onFocusComposer: () => void;
   readonly onAnnounce: (message: string) => void;
 }) {
+  const hasVisibleContent = message.parts.some(part => (
+    (part.type === "text" && part.text.trim().length > 0)
+    || part.type === "dynamic-tool"
+  ));
+
   return (
     <li className={cn("grid gap-2", message.role === "user" && "w-[min(620px,88%)] justify-self-end max-sm:w-[94%]")}>
       <p className={cn("m-0 text-[0.68rem] font-extrabold tracking-wider text-ink-soft", message.role === "user" && "text-right")}>{message.role === "user" ? "担当者" : "初動支援AI"}</p>
       <div className={cn("rounded-[4px_16px_16px_16px] border border-line bg-paper px-5 py-[18px] leading-[1.85] [&>p]:m-0 [&>p]:whitespace-pre-wrap", message.role === "user" && "rounded-[16px_4px_16px_16px] border-[#c5d8d5] bg-teal-pale")}>
+        {message.role === "assistant" && isPending && !hasVisibleContent ? (
+          <p className="flex items-center gap-3 text-[0.86rem] font-bold text-[#176c67]">
+            <span className="relative size-4 shrink-0" aria-hidden="true">
+              <span className="absolute inset-0 rounded-full border-2 border-[#a8cbc7]" />
+              <span className="absolute inset-0 animate-spin rounded-full border-2 border-transparent border-t-teal motion-reduce:animate-none" />
+            </span>
+            相談内容を整理しています…
+          </p>
+        ) : null}
         {message.parts.map((part, index) => {
-          if (part.type === "text") return <p key={`${message.id}:text:${index}`}>{part.text}</p>;
+          if (part.type === "text") {
+            return part.text.trim() ? <p key={`${message.id}:text:${index}`}>{part.text}</p> : null;
+          }
           if (part.type === "dynamic-tool") {
             return <ToolResult key={part.toolCallId} part={part} canRespond={canRespond} onRespond={onRespond} onRequestConsultation={onRequestConsultation} onFocusComposer={onFocusComposer} onAnnounce={onAnnounce} />;
           }
