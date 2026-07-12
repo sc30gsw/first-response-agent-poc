@@ -1,18 +1,11 @@
 "use client";
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { Result } from "better-result";
 import { useEveAgent, type EveMessage } from "eve/react";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import type { RefObject, SubmitEvent } from "react";
 import { cn } from "cnfast";
-import {
-  shouldRetryThreadApiError,
-  threadApiClient,
-  threadApiRetryDelay,
-  ThreadApiClientError,
-} from "@/lib/api-client";
-import { threadQueryKeys } from "@/lib/query-keys";
 import { MAX_CHAT_MESSAGE_CHARS } from "@/shared/chat-limits";
 import {
   PersistedEveEventSchema,
@@ -22,14 +15,13 @@ import {
 } from "@/shared/eve-events";
 import {
   normalizeThreadSummary,
-  threadRecordToSummary,
   type ThreadRecord,
-  type ThreadState,
   type ThreadSummary,
 } from "@/shared/types/thread";
 import type { Expert } from "@/shared/tools/first-response";
 import { AccessibleTooltip } from "./accessible-tooltip";
 import { ToolResult } from "./tool-results";
+import { useThreadPersistence } from "./use-thread-persistence";
 import { WorkspaceShell } from "./workspace-shell";
 
 type EveChatProps = {

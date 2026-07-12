@@ -22,7 +22,9 @@
   "scripts": {
     "build": "pnpm build:eve && next build",
     "build:eve": "eve build",
-    "dev": "next dev",
+    "dev": "concurrently --kill-others-on-fail --names eve,next \"pnpm dev:eve\" \"pnpm dev:next\"",
+    "dev:eve": "eve dev --no-ui --port 2000",
+    "dev:next": "EVE_BASE_URL=http://127.0.0.1:2000 next dev",
     "start": "next start",
     "test": "vitest run",
     "typecheck": "next typegen && tsc --noEmit -p tsconfig.json",
@@ -52,6 +54,7 @@
     "@types/node": "26.1.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "concurrently": "^10.0.3",
     "drizzle-kit": "^0.31.10",
     "react-doctor": "^0.7.4",
     "tailwindcss": "^4.3.2",

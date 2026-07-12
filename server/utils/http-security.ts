@@ -20,11 +20,37 @@ export class SameOriginError extends TaggedError("SameOriginError")<{
   readonly message: string;
 }>() {}
 
+function isLoopbackHostname(hostname: string) {
+  return hostname === "localhost"
+    || hostname === "::1"
+    || /^127(?:\.\d{1,3}){3}$/u.test(hostname);
+}
+
+function firstForwardedHeaderValue(request: Request, name: string) {
+  return request.headers.get(name)?.split(",", 1)[0]?.trim() || null;
+}
+
+function requestOrigin(request: Request) {
+  const url = new URL(request.url);
+  if (!isLoopbackHostname(url.hostname)) return url.origin;
+
+  const host = firstForwardedHeaderValue(request, "x-forwarded-host");
+  const protocol = firstForwardedHeaderValue(request, "x-forwarded-proto");
+  if (!host || (protocol !== "http" && protocol !== "https")) return url.origin;
+
+  try {
+    return new URL(`${protocol}://${host}`).origin;
+  }
+  catch {
+    return url.origin;
+  }
+}
+
 export function validateSameOrigin(
   request: Request,
 ): Result<void, SameOriginError> {
   const origin = request.headers.get("origin");
-  return origin === new URL(request.url).origin
+  return origin === requestOrigin(request)
     ? Result.ok(undefined)
     : Result.err(new SameOriginError({
         message: "Request origin is not allowed",
