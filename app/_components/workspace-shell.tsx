@@ -57,7 +57,7 @@ export function WorkspaceShell({ children, currentThreadId, threads }: Workspace
   return (
     <div className="grid h-dvh grid-cols-[280px_minmax(0,1fr)] grid-rows-[64px_minmax(0,1fr)] bg-canvas max-sm:grid-cols-1 max-sm:grid-rows-[60px_auto_minmax(0,1fr)]">
       <a className="fixed top-3 left-3 z-100 translate-y-[-160%] rounded-lg bg-navy-deep px-4 py-2.5 font-bold text-white no-underline focus:translate-y-0" href="#main-content">本文へ移動</a>
-      <header className="z-5 col-span-full flex items-center justify-between border-b border-line bg-paper/96 px-5 max-sm:col-span-1 max-sm:px-3.5">
+      <header className="z-30 col-span-full flex items-center justify-between border-b border-line bg-paper/96 px-5 max-sm:col-span-1 max-sm:px-3.5">
         <Link className="inline-flex items-center gap-[11px] font-extrabold tracking-[0.02em] no-underline" href="/" aria-label="初動支援AIの新規相談へ">
           <BrandMark />
           <span>初動支援AI</span>

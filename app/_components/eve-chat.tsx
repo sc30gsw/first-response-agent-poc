@@ -152,7 +152,10 @@ export function EveChat({ thread, threads }: EveChatProps) {
   });
   const isAgentBusy = agent.status === "submitted" || agent.status === "streaming";
   const isBusy = isSendStarting || isAgentBusy;
-  const showImmediateLoading = isSendStarting && !isAgentBusy;
+  const hasStreamedAssistantContent = agent.data.messages.some(message => (
+    message.role === "assistant" && hasVisibleMessageContent(message)
+  ));
+  const showImmediateLoading = isSendStarting && !hasStreamedAssistantContent;
 
   async function sendAgentInput(
     input: Parameters<typeof agent.send>[0],
@@ -478,10 +481,7 @@ function ChatMessage({
   readonly onFocusComposer: () => void;
   readonly onAnnounce: (message: string) => void;
 }) {
-  const hasVisibleContent = message.parts.some(part => (
-    (part.type === "text" && part.text.trim().length > 0)
-    || part.type === "dynamic-tool"
-  ));
+  const hasVisibleContent = hasVisibleMessageContent(message);
 
   return (
     <li className={cn("grid gap-2", message.role === "user" && "w-[min(620px,88%)] justify-self-end max-sm:w-[94%]")}>
@@ -508,4 +508,11 @@ function ChatMessage({
       </div>
     </li>
   );
+}
+
+function hasVisibleMessageContent(message: EveMessage) {
+  return message.parts.some(part => (
+    (part.type === "text" && part.text.trim().length > 0)
+    || part.type === "dynamic-tool"
+  ));
 }
