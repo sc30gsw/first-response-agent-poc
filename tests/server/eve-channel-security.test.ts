@@ -290,6 +290,32 @@ describe("Eve WebチャネルのHTTPセキュリティ", () => {
     expect(response.status).toBe(200);
   });
 
+  it("作成直後のstreamは実行中leaseがある間だけ所有者紐付けを待つ", async () => {
+    const cookie = await signIn("198.51.100.66");
+    const threadId = await createThread(cookie);
+    const sessionId = "binding-race-session";
+    const postAuth = await context.security.auth(
+      eveRequest("/eve/v1/session", "POST", cookie, threadId, { message: "相談" }, {
+        "x-forwarded-for": "198.51.100.66",
+      }),
+    );
+    expect(postAuth).not.toBeNull();
+    if (!postAuth) throw new Error("Expected authenticated POST context");
+
+    const binding = new Promise<void>((resolve, reject) => {
+      setTimeout(() => {
+        void context.security.bindSessionFromAuth(sessionId, postAuth)
+          .then(resolve, reject);
+      }, 10);
+    });
+    const streamAuth = await context.security.auth(
+      eveRequest(`/eve/v1/session/${sessionId}/stream`, "GET", cookie, threadId),
+    );
+    await binding;
+
+    expect(streamAuth?.principalId).toBe(postAuth?.principalId);
+  });
+
   it("異なるOriginと長すぎる入力をモデル実行前に拒否する", async () => {
     const cookie = await signIn("198.51.100.34");
     const threadId = await createThread(cookie);

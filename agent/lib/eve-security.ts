@@ -4,7 +4,7 @@ import type { AuthFn } from "eve/channels/auth";
 import type { EveChannelEvents } from "eve/channels/eve";
 import type { InputResponse } from "eve/client";
 import type { SessionAuthContext } from "eve/context";
-import { and, eq, lt, lte, sql } from "drizzle-orm";
+import { and, eq, gt, lt, lte, sql } from "drizzle-orm";
 import { z } from "zod";
 import { MAX_CHAT_MESSAGE_CHARS } from "@/shared/chat-limits";
 import {
@@ -27,6 +27,8 @@ import { threads, type Thread } from "@/server/db/schema/threads";
 import { readJsonBody, validateSameOrigin } from "@/server/utils/http-security";
 
 const SESSION_ROUTE = /^\/eve\/v1\/session(?:\/([^/]+)(?:\/stream)?)?\/?$/u;
+const SESSION_BINDING_POLL_INTERVAL_MS = 50;
+const SESSION_BINDING_MAX_WAIT_MS = 5_000;
 const nonBlankStringSchema = z.string().min(1).refine((value) => value.trim().length > 0);
 const textPartSchema = z.object({
   type: z.literal("text"),
@@ -105,6 +107,7 @@ type EveDatabaseOperation =
   | "bind-session"
   | "clean-rate-limits"
   | "consume-rate-limit"
+  | "find-run-lease"
   | "find-session-binding"
   | "find-thread"
   | "release-lease"
@@ -558,6 +561,34 @@ export function createEveSecurity(options: CreateEveSecurityOptions) {
           .limit(1),
       ));
       let binding = initialBindings[0];
+
+      if (!binding) {
+        const activeLeases = yield* Result.await(runDatabase(
+          "find-run-lease",
+          () => database.select({ leaseId: agentRunLeases.leaseId })
+            .from(agentRunLeases)
+            .where(and(
+              eq(agentRunLeases.subjectKey, keyedHash(`lease:${userId}`)),
+              gt(agentRunLeases.expiresAt, new Date()),
+            ))
+            .limit(1),
+        ));
+
+        if (activeLeases[0]) {
+          const attempts = SESSION_BINDING_MAX_WAIT_MS / SESSION_BINDING_POLL_INTERVAL_MS;
+          for (let attempt = 0; attempt < attempts && !binding; attempt += 1) {
+            await new Promise(resolve => setTimeout(resolve, SESSION_BINDING_POLL_INTERVAL_MS));
+            const pendingBindings = yield* Result.await(runDatabase(
+              "find-session-binding",
+              () => database.select()
+                .from(eveSessionBindings)
+                .where(eq(eveSessionBindings.sessionId, sessionId))
+                .limit(1),
+            ));
+            binding = pendingBindings[0];
+          }
+        }
+      }
 
       // Migration-created rows keep revision 0. Once the client has patched a
       // thread, its mutable state must never be trusted to claim an Eve id.

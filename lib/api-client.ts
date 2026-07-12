@@ -86,7 +86,7 @@ function validateResponse<TSchema extends z.ZodType>(
   result: ThreadTransportResult,
   schema: TSchema,
 ): Result<z.output<TSchema>, ThreadApiClientError> {
-  const parsed = schema.safeParse(result.data);
+  const parsed = schema.safeParse(normalizeTransportValue(result.data));
   if (parsed.success) return Result.ok(parsed.data);
 
   return Result.err(new ThreadApiClientError({
@@ -96,6 +96,17 @@ function validateResponse<TSchema extends z.ZodType>(
     retryable: false,
     status: 200,
   }));
+}
+
+function normalizeTransportValue(value: unknown): unknown {
+  if (value instanceof Date) return value.toISOString();
+  if (Array.isArray(value)) return value.map(normalizeTransportValue);
+  if (value === null || typeof value !== "object") return value;
+  if (Object.getPrototypeOf(value) !== Object.prototype) return value;
+
+  return Object.fromEntries(
+    Object.entries(value).map(([key, item]) => [key, normalizeTransportValue(item)]),
+  );
 }
 
 async function execute<TSchema extends z.ZodType, TValue>(

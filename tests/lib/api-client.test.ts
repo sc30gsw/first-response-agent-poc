@@ -69,6 +69,35 @@ describe("thread API client", () => {
     await expect(api.delete(THREAD_ID)).resolves.toBeUndefined();
   });
 
+  it("normalizes Eden-hydrated event dates back to the JSON contract", async () => {
+    const hydratedAt = new Date("2026-07-12T08:02:42.282Z");
+    const hydratedThread = {
+      ...thread,
+      state: {
+        events: [{
+          type: "session.started",
+          data: {},
+          meta: { at: hydratedAt },
+        }],
+        session: { streamIndex: 0 },
+      },
+    };
+    const api = createThreadApiClient(transport({
+      update: vi.fn().mockResolvedValue({
+        data: { thread: hydratedThread },
+        error: null,
+      }),
+    }));
+
+    const updated = await api.update({
+      expectedRevision: 0,
+      id: THREAD_ID,
+      input: { state: { events: [], session: { streamIndex: 0 } } },
+    });
+
+    expect(updated.state?.events[0]?.meta?.at).toBe(hydratedAt.toISOString());
+  });
+
   it("converts a plain API error into a typed non-retryable error", async () => {
     const api = createThreadApiClient(transport({
       update: vi.fn().mockResolvedValue({
