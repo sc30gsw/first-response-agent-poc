@@ -56,6 +56,12 @@ AIが
 
 ことで、**人がより良い判断をするための初動を支援する**ことを目的としています。
 
+## デモ動画
+※ 1.5〜2.0倍速でご覧いただくとスムーズかと思います。
+
+https://github.com/user-attachments/assets/f11300dd-4542-48e1-9e6c-f25dac8e60d5
+
+
 ## デモフロー
 
 1. 本番URL（`https://first-response-agent-poc.vercel.app/`）にアクセスする
