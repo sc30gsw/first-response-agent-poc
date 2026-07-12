@@ -5,6 +5,7 @@ import { Result } from "better-result";
 import { useEveAgent, type EveMessage } from "eve/react";
 import { useRef, useState } from "react";
 import type { RefObject, SubmitEvent } from "react";
+import { flushSync } from "react-dom";
 import { cn } from "cnfast";
 import { MAX_CHAT_MESSAGE_CHARS } from "@/shared/chat-limits";
 import {
@@ -62,6 +63,7 @@ export function EveChat({ thread, threads }: EveChatProps) {
   const receivedAnalysisActionRef = useRef(false);
   const [announcement, setAnnouncement] = useState("");
   const [draft, setDraft] = useState(() => readAndClearDraft(draftStorageKey));
+  const [isSendStarting, setIsSendStarting] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
   const persistence = useThreadPersistence({ onAnnounce: setAnnouncement, queryClient, thread });
 
@@ -70,6 +72,7 @@ export function EveChat({ thread, threads }: EveChatProps) {
     initialEvents: thread.state?.events,
     initialSession: thread.state?.session,
     onError(error) {
+      setIsSendStarting(false);
       const pendingMessage = pendingComposerMessageRef.current;
       if (pendingMessage) setDraft(pendingMessage);
       const message = eveErrorMessage(
@@ -80,6 +83,7 @@ export function EveChat({ thread, threads }: EveChatProps) {
       setAnnouncement(message);
     },
     onEvent(event) {
+      setIsSendStarting(false);
       const parsed = PersistedEveEventSchema.safeParse(event);
       if (!parsed.success) {
         persistence.blockSaving("未対応の会話イベントを受信したため、履歴の保存を停止しました。ページを再読み込みしてください。");
@@ -101,6 +105,7 @@ export function EveChat({ thread, threads }: EveChatProps) {
       persistence.enqueueStateSave(persistence.currentThreadState());
     },
     onFinish(snapshot) {
+      setIsSendStarting(false);
       const boundary = snapshot.events.at(-1)?.type;
       const completedWithoutAnalysis = !snapshot.error
         && expectsAnalysisActionRef.current
@@ -134,7 +139,9 @@ export function EveChat({ thread, threads }: EveChatProps) {
       }
     },
   });
-  const isBusy = agent.status === "submitted" || agent.status === "streaming";
+  const isAgentBusy = agent.status === "submitted" || agent.status === "streaming";
+  const isBusy = isSendStarting || isAgentBusy;
+  const showImmediateLoading = isSendStarting && !isAgentBusy;
 
   async function sendAgentInput(
     input: Parameters<typeof agent.send>[0],
@@ -170,12 +177,17 @@ export function EveChat({ thread, threads }: EveChatProps) {
     const message = draft.trim();
     if (!message || isBusy) return;
 
-    setAnnouncement("初動支援AIが相談内容を整理しています。");
     pendingComposerMessageRef.current = message;
     expectsAnalysisActionRef.current = true;
     receivedAnalysisActionRef.current = false;
     const isFirstMessage = persistence.beginFirstMessageSummaryIfNeeded(message, normalizeThreadSummary);
-    setDraft("");
+    // Eve updates its status after send() begins. Flush this local state first
+    // so the user gets feedback in the same frame as the submit interaction.
+    flushSync(() => {
+      setAnnouncement("相談内容を受け付け、分析を開始しています。");
+      setDraft("");
+      setIsSendStarting(true);
+    });
     const sent = await sendAgentInput(
       { message },
       "メッセージを送信できませんでした。再度お試しください。",
@@ -184,11 +196,17 @@ export function EveChat({ thread, threads }: EveChatProps) {
       if (isFirstMessage) persistence.commitFirstMessageSummary();
       return;
     }
+    setIsSendStarting(false);
     if (isFirstMessage) persistence.rollbackFirstMessageSummary();
     setDraft(message);
     pendingComposerMessageRef.current = null;
     expectsAnalysisActionRef.current = false;
     receivedAnalysisActionRef.current = false;
+  }
+
+  function stopAgent() {
+    setIsSendStarting(false);
+    agent.stop();
   }
 
   async function respondToRequest(
@@ -220,6 +238,7 @@ export function EveChat({ thread, threads }: EveChatProps) {
           onRequestConsultation={requestConsultation}
           onRespond={respondToRequest}
         />
+        {showImmediateLoading ? <ImmediateSendLoading /> : null}
         <ChatFeedback
           announcement={announcement}
           canRetrySave={persistence.canRetrySave}
@@ -234,11 +253,26 @@ export function EveChat({ thread, threads }: EveChatProps) {
           inputRef={inputRef}
           isBusy={isBusy}
           onDraftChange={setDraft}
-          onStop={agent.stop}
+          onStop={stopAgent}
           onSubmit={submitMessage}
         />
       </div>
     </WorkspaceShell>
+  );
+}
+
+function ImmediateSendLoading() {
+  return (
+    <div className="mx-auto my-3 grid w-full max-w-[780px] gap-2" role="status" aria-live="polite">
+      <p className="m-0 text-[0.68rem] font-extrabold tracking-wider text-ink-soft">初動支援AI</p>
+      <div className="flex items-center gap-3 rounded-[4px_16px_16px_16px] border border-[#a8cbc7] bg-teal-pale px-5 py-[18px] text-[0.86rem] font-bold text-[#176c67]">
+        <span className="relative size-4 shrink-0" aria-hidden="true">
+          <span className="absolute inset-0 rounded-full border-2 border-[#a8cbc7]" />
+          <span className="absolute inset-0 animate-spin rounded-full border-2 border-transparent border-t-teal motion-reduce:animate-none" />
+        </span>
+        相談内容を受け付け、分析を開始しています…
+      </div>
+    </div>
   );
 }
 
