@@ -346,7 +346,7 @@ function ChatHeader({ isBusy, status, title }: {
     <header className="flex items-center justify-between gap-8 border-b border-line pb-7 max-sm:items-start">
       <div>
         <p className={EYEBROW}>相談案件</p>
-        <h1 className="max-w-[720px] overflow-hidden font-display text-[clamp(1.35rem,3vw,2.1rem)] font-semibold text-ellipsis whitespace-nowrap tracking-[-0.04em]">
+        <h1 className="max-w-[720px] font-display text-[clamp(1.35rem,3vw,2.1rem)] font-semibold tracking-[-0.04em]">
           <AccessibleTooltip className="block max-w-[min(720px,70vw)] [&>button]:block [&>button]:max-w-full [&>button>span]:block [&>button>span]:max-w-full [&>button>span]:overflow-hidden [&>button>span]:text-ellipsis [&>button>span]:underline [&>button>span]:decoration-dotted [&>button>span]:decoration-control-line [&>button>span]:underline-offset-[6px] [&>button>span]:whitespace-nowrap" content={title}>
             <span>{title}</span>
           </AccessibleTooltip>

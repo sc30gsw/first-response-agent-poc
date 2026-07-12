@@ -106,7 +106,7 @@ export function AccessibleTooltip({ children, className, content }: AccessibleTo
         {children}
       </button>
       {isOpen ? (
-        <span ref={tooltipRef} id={tooltipId} className="fixed z-1000 w-max max-w-[min(360px,calc(100vw-24px))] rounded-lg bg-navy-deep px-3 py-2.5 text-left text-[0.76rem] font-semibold leading-[1.65] text-white shadow-[0_10px_28px_rgb(16_38_59/24%)]" role="tooltip" style={position}>
+        <span ref={tooltipRef} id={tooltipId} className="fixed z-1000 w-max max-w-[min(360px,calc(100vw-24px))] rounded-lg bg-navy-deep px-3 py-2.5 text-left text-[0.76rem] font-semibold leading-[1.65] tracking-[0.02em] text-white shadow-[0_10px_28px_rgb(16_38_59/24%)]" role="tooltip" style={position}>
           {content}
         </span>
       ) : null}
