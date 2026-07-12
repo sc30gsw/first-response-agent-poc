@@ -250,7 +250,7 @@ function ChatHeader({ isBusy, status, title }: {
   readonly title: ThreadSummary["title"];
 }) {
   return (
-    <header className="flex items-center justify-between gap-8 border-b border-line pb-7 max-sm:items-start">
+    <header className="sticky top-0 z-20 flex items-center justify-between gap-8 border-b border-line bg-canvas/95 py-4 shadow-[0_10px_24px_rgb(16_38_59/5%)] backdrop-blur-md max-sm:items-start max-sm:gap-4 max-sm:py-3">
       <div>
         <p className={EYEBROW}>相談案件</p>
         <h1 className="max-w-[720px] font-display text-[clamp(1.35rem,3vw,2.1rem)] font-semibold tracking-[-0.04em]">
