@@ -83,11 +83,22 @@ export function EveChat({ thread, threads }: EveChatProps) {
       setAnnouncement(message);
     },
     onEvent(event) {
-      setIsSendStarting(false);
       const parsed = PersistedEveEventSchema.safeParse(event);
       if (!parsed.success) {
         persistence.blockSaving("未対応の会話イベントを受信したため、履歴の保存を停止しました。ページを再読み込みしてください。");
         return;
+      }
+
+      // Keep the immediate loading row through session/turn startup. Replace
+      // it only when Eve has streamed content that the conversation can
+      // actually render: text or a tool lifecycle update.
+      if (
+        parsed.data.type === "actions.requested"
+        || parsed.data.type === "action.result"
+        || parsed.data.type === "message.appended"
+        || parsed.data.type === "message.completed"
+      ) {
+        setIsSendStarting(false);
       }
 
       if (
