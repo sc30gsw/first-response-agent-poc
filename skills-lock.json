@@ -133,6 +133,12 @@
       "sourceType": "autoskills-registry",
       "computedHash": "7361ab02fb6b09913e3bdd9cf61c629ed6c17de9485e6a781054e5d437ccfc29"
     },
+    "openui": {
+      "source": "thesysdev/openui",
+      "sourceType": "github",
+      "skillPath": "skills/openui/SKILL.md",
+      "computedHash": "4c9c63ba16d3ec875f16c3232e95e949561633cf1e8507f89ca3868422f97fad"
+    },
     "organization": {
       "source": "better-auth/skills",
       "sourceType": "autoskills-registry",
