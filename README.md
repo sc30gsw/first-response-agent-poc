@@ -171,7 +171,7 @@ pnpm dev               # http://localhost:3000
 ## API
 
 スレッドAPIはElysiaで `/api/v1` 以下へ公開します。ブラウザはEdenの型付きadapterをTanStack Queryから利用し、Server Componentは同じApplication Serviceを直接呼び出します。
-更新はETag/If-Matchで競合を検出し、API responseはOpenAPIを含め `Cache-Control: no-store` とします。
+更新はETag/`X-Thread-Revision`で競合を検出し、API responseはOpenAPIを含め `Cache-Control: no-store` とします。
 
 - 対話型OpenAPI: [`/api/v1/openapi`](http://localhost:3000/api/v1/openapi)
 - OpenAPI JSON: [`/api/v1/openapi/json`](http://localhost:3000/api/v1/openapi/json)

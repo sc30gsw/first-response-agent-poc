@@ -23,7 +23,7 @@ import { addThreadEtagResponseHeaders } from "./openapi-contract";
 import {
   authenticateThreadRequest,
   type GetAuthenticatedUserId,
-  parseIfMatchRevision,
+  parseThreadRevisionHeader,
   validateMutationOrigin,
 } from "./request-policy";
 
@@ -63,7 +63,7 @@ const routeDetails = {
   },
   update: {
     ...authenticatedRoute,
-    description: "Updates a thread when If-Match is current and returns the new ETag revision.",
+    description: "Updates a thread when X-Thread-Revision is current and returns the new ETag revision.",
     summary: "Update a thread",
   },
 } as const satisfies Record<string, RouteDetail>;
@@ -86,7 +86,7 @@ const limitErrorStatuses = {
 const validationErrorStatuses = {
   "content-length": 400,
   "content-type": 415,
-  "if-match": 428,
+  "thread-revision": 428,
   "invalid-body": 400,
   "invalid-input": 400,
   "invalid-json": 400,
@@ -299,7 +299,7 @@ export function createApiApp(options: CreateApiAppOptions = {}) {
       if (code === "VALIDATION" || code === "PARSE") {
         if (request.method === "PATCH"
           && new URL(request.url).pathname.startsWith(`${API_PREFIX}/threads/`)) {
-          const revision = parseIfMatchRevision(request.headers.get("if-match"));
+          const revision = parseThreadRevisionHeader(request.headers.get("x-thread-revision"));
           if (Result.isError(revision)) {
             return setStatus(
               validationErrorStatuses[revision.error.reason],
@@ -379,7 +379,7 @@ export function createApiApp(options: CreateApiAppOptions = {}) {
     .patch("/threads/:id", async ({ body, params, request }) => {
       const result = await runAuthenticatedMutation({
         action: async (userId) => {
-          const revision = parseIfMatchRevision(request.headers.get("if-match"));
+          const revision = parseThreadRevisionHeader(request.headers.get("x-thread-revision"));
           return Result.isError(revision)
             ? Result.err(revision.error)
             : service.update({
@@ -396,7 +396,7 @@ export function createApiApp(options: CreateApiAppOptions = {}) {
       return threadApplicationResponse(result);
     }, {
       body: threadApiSchemas.patchBody,
-      headers: threadApiSchemas.ifMatchHeaders,
+      headers: threadApiSchemas.revisionHeaders,
       params: threadApiSchemas.itemParams,
       response: {
         200: threadApiSchemas.threadResponse,

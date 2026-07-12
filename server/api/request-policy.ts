@@ -55,7 +55,7 @@ export function validateMutationOrigin(
       }));
 }
 
-export function parseIfMatchRevision(
+export function parseThreadRevisionHeader(
   value: string | null,
 ): Result<Thread["stateVersion"], ValidationError> {
   const match = /^"(0|[1-9]\d*)"$/u.exec(value ?? "");
@@ -64,9 +64,9 @@ export function parseIfMatchRevision(
   return Number.isSafeInteger(revision)
     ? Result.ok(revision)
     : Result.err(new ValidationError({
-        issues: ["if-match"],
-        message: "A valid If-Match revision is required",
+        issues: ["x-thread-revision"],
+        message: "A valid X-Thread-Revision header is required",
         operation: "update-thread",
-        reason: "if-match",
+        reason: "thread-revision",
       }));
 }

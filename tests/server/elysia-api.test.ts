@@ -135,7 +135,7 @@ describe("Elysia thread API", () => {
       app.handle(request(`/api/v1/threads/${THREAD_ID}`, { userId: OWNER_ID })),
       app.handle(request(`/api/v1/threads/${THREAD_ID}`, {
         body: { title: "更新案件" },
-        headers: { "if-match": "\"0\"" },
+        headers: { "x-thread-revision": "\"0\"" },
         method: "PATCH",
         userId: OWNER_ID,
       })),
@@ -219,7 +219,7 @@ describe("Elysia thread API", () => {
       method: "PATCH",
       headers: {
         authorization: `User ${OWNER_ID}`,
-        "if-match": "\"0\"",
+        "x-thread-revision": "\"0\"",
         origin: BASE_URL,
       },
       body: JSON.stringify({ title: "更新" }),
@@ -229,7 +229,7 @@ describe("Elysia thread API", () => {
     expect(missingType.status).toBe(415);
   });
 
-  it("requires a valid If-Match revision", async () => {
+  it("requires a valid X-Thread-Revision value", async () => {
     const missing = await app.handle(request(`/api/v1/threads/${THREAD_ID}`, {
       body: { title: "更新" },
       method: "PATCH",
@@ -237,7 +237,7 @@ describe("Elysia thread API", () => {
     }));
     const invalid = await app.handle(request(`/api/v1/threads/${THREAD_ID}`, {
       body: { title: "更新" },
-      headers: { "if-match": "0" },
+      headers: { "x-thread-revision": "0" },
       method: "PATCH",
       userId: OWNER_ID,
     }));
@@ -278,7 +278,7 @@ describe("Elysia thread API", () => {
 
     const response = await app.handle(request(`/api/v1/threads/${THREAD_ID}`, {
       body: { title: "更新" },
-      headers: { "if-match": "\"0\"" },
+      headers: { "x-thread-revision": "\"0\"" },
       method: "PATCH",
       userId: OWNER_ID,
     }));
@@ -339,7 +339,7 @@ describe("Elysia thread API", () => {
     expect(document.paths["/api/v1/threads"]?.get?.tags).toEqual(["Threads"]);
     const patch = document.paths["/api/v1/threads/{id}"]?.patch;
     expect(patch?.parameters).toEqual(expect.arrayContaining([
-      expect.objectContaining({ in: "header", name: "if-match", required: true }),
+      expect.objectContaining({ in: "header", name: "x-thread-revision", required: true }),
     ]));
     expect(patch?.description).toContain("ETag");
     expect(document.paths["/api/v1/threads"]?.post?.responses?.["201"]?.headers?.ETag)
@@ -523,7 +523,7 @@ describe("Elysia thread API with Better Auth and libSQL", () => {
       {
         body: { state },
         cookie,
-        headers: { "if-match": "\"0\"" },
+        headers: { "x-thread-revision": "\"0\"" },
         method: "PATCH",
       },
     ));
@@ -532,7 +532,7 @@ describe("Elysia thread API with Better Auth and libSQL", () => {
       {
         body: { state: { ...state, session: { streamIndex: 5 } } },
         cookie,
-        headers: { "if-match": "\"0\"" },
+        headers: { "x-thread-revision": "\"0\"" },
         method: "PATCH",
       },
     ));
@@ -558,7 +558,7 @@ describe("Elysia thread API with Better Auth and libSQL", () => {
           },
         },
         cookie,
-        headers: { "if-match": "\"0\"" },
+        headers: { "x-thread-revision": "\"0\"" },
         method: "PATCH",
       },
     ));

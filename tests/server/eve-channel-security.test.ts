@@ -208,7 +208,7 @@ describe("Eve WebチャネルのHTTPセキュリティ", () => {
           cookie,
           origin: BASE_URL,
           "content-type": "application/json",
-          "if-match": "\"0\"",
+          "x-thread-revision": "\"0\"",
         },
         body: JSON.stringify({
           state: {
@@ -336,7 +336,7 @@ describe("Eve WebチャネルのHTTPセキュリティ", () => {
           cookie,
           origin: BASE_URL,
           "content-type": "application/json",
-          "if-match": "\"0\"",
+          "x-thread-revision": "\"0\"",
         },
         body: JSON.stringify({
           state: {

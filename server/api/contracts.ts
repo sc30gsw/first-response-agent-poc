@@ -23,8 +23,8 @@ export const threadApiSchemas = {
   createBody: createThreadBodySchema,
   deleteResponse: z.object({ ok: z.literal(true) }),
   error: apiErrorSchema,
-  ifMatchHeaders: z.looseObject({
-    "if-match": z.string()
+  revisionHeaders: z.looseObject({
+    "x-thread-revision": z.string()
       .describe("Quoted thread revision, for example \"2\"."),
   }),
   itemParams: threadIdParamsSchema,

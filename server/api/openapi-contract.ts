@@ -16,7 +16,7 @@ const documentSchema = z.looseObject({
 });
 
 const etagHeader = {
-  description: "Quoted thread revision used with If-Match.",
+  description: "Quoted thread revision returned for the next X-Thread-Revision request.",
   schema: {
     example: "\"2\"",
     type: "string",

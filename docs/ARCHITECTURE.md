@@ -81,13 +81,13 @@ Vercel では [`vercel.json`](../vercel.json) のサービス設定により `we
 5. エージェントが `analyze_case` → `search_similar_cases` / `search_experts` / `search_guides` → `draft_consultation_request` の順にツールを呼び出す
 6. 各ツールは `agent/lib/domain/` の決定的検索で順位を確定する（LLM は結果の説明のみで、順位・採点を変更しない）
 7. ツール結果は `app/_components/tool-results.tsx` の構造化カードとして描画される
-8. スレッド更新はETag/If-Matchによるrevision競合検出を行い、libsqlへ永続化される
+8. スレッド更新はETag/`X-Thread-Revision`によるrevision競合検出を行い、libsqlへ永続化される
 
 ## API境界
 
-Elysiaは `/api/v1/threads` と `/api/v1/threads/:id` を公開します。`server/api/` はBetter Auth認証、same-origin、Content-Type・body上限、If-Match解析、HTTP status/header変換を担当します。`server/application/thread-service.ts` は認証済みuser ID、plain DTO、expected revisionを受け取り、repository interfaceだけへ依存して所有権付きDB処理を行います。想定内失敗は `better-result` のtyped errorとして合成し、HTTP境界で401・403・404・409・413・415・428・429・500へ変換します。
+Elysiaは `/api/v1/threads` と `/api/v1/threads/:id` を公開します。`server/api/` はBetter Auth認証、same-origin、Content-Type・body上限、`X-Thread-Revision`解析、HTTP status/header変換を担当します。`server/application/thread-service.ts` は認証済みuser ID、plain DTO、expected revisionを受け取り、repository interfaceだけへ依存して所有権付きDB処理を行います。想定内失敗は `better-result` のtyped errorとして合成し、HTTP境界で401・403・404・409・413・415・428・429・500へ変換します。
 
-OpenAPI UIは `/api/v1/openapi`、JSON仕様は `/api/v1/openapi/json` です。If-Matchの必須性とETag response headerも機械可読な契約として公開します。ブラウザadapterは成功・エラーの両方をruntime検証し、TanStack Queryへplain値または `ThreadApiClientError` を返します。API errorの `retryable` をそのまま引き継ぎ、破損stateなどの恒久エラーを自動再試行しません。
+OpenAPI UIは `/api/v1/openapi`、JSON仕様は `/api/v1/openapi/json` です。`X-Thread-Revision`の必須性とETag response headerも機械可読な契約として公開します。ブラウザadapterは成功・エラーの両方をruntime検証し、TanStack Queryへplain値または `ThreadApiClientError` を返します。API errorの `retryable` をそのまま引き継ぎ、破損stateなどの恒久エラーを自動再試行しません。
 
 ## 型の正本
 

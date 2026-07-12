@@ -198,7 +198,7 @@ export function createEdenThreadTransport(baseUrl: string) {
     get: (id: ThreadSummary["id"]) => normalize(api.threads({ id }).get()),
     list: () => normalize(api.threads.get()),
     update: ({ expectedRevision, id, input }: ThreadUpdateRequest) => normalize(api.threads({ id }).patch(input, {
-      headers: { "if-match": `"${expectedRevision}"` },
+      headers: { "x-thread-revision": `"${expectedRevision}"` },
     })),
   } as const;
 }

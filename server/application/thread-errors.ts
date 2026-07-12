@@ -28,7 +28,7 @@ export class ValidationError extends TaggedError("ValidationError")<{
   readonly reason:
     | "content-length"
     | "content-type"
-    | "if-match"
+    | "thread-revision"
     | "invalid-body"
     | "invalid-input"
     | "invalid-json"
