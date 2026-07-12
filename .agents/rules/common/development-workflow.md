@@ -36,6 +36,12 @@ pnpm build
 
 Report any command that could not run and the reason. Do not claim success from a narrower check.
 
+For final review of React or Next.js changes, also run the latest React Doctor against the changed scope. This supplements rather than replaces the required commands:
+
+```bash
+npx react-doctor@latest --verbose --scope changed
+```
+
 ## Database workflow
 
 Use `pnpm db:generate` and `pnpm db:migrate`; both run `drizzle-kit` against `drizzle.config.ts`. Do not bypass the package scripts with ad-hoc `drizzle-kit` invocations using other flags or configs. Preserve generated migrations and metadata. A local database reset (`rm -rf .data && pnpm db:migrate`) is destructive and must only be performed when the task requires it.

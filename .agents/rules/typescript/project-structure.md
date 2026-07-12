@@ -42,3 +42,4 @@ Do not invent `#evals/*`; it is not configured.
 - Server Components call the same application service directly instead of self-fetching. Client Components use the Eden adapter through TanStack Query and do not call application endpoints with raw `fetch`.
 - Keep database and provider details behind adapters in `server/utils/`; application services depend on their typed interfaces.
 - Put cross-layer contracts in `shared/` only when they are serializable and do not pull server or browser dependencies across the boundary.
+- A `shared/` wire contract may use an erased `import type` from a Drizzle schema solely to derive unchanged scalar types. Never import a table value, database client, repository, or server function into `shared/` runtime code.

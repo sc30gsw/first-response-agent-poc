@@ -15,7 +15,7 @@ Follow `CODING_GUIDELINE.md`. This repository is a Next.js App Router applicatio
 
 - Prefer `type`; use `interface` only when declaration merging or an external contract benefits from it.
 - Prefer inferred return types for internal functions. Annotate public boundaries or values that would widen to `any` or `unknown`.
-- Derive related types with `z.infer`, `Pick`, `Omit`, indexed access, or other utility types instead of duplicating fields.
+- Derive related types with Drizzle `$inferSelect` / `$inferInsert`, `z.input` / `z.output`, `Pick`, `Omit`, indexed access, `Parameters`, or `ReturnType` instead of duplicating fields. Follow `../typescript/type-source-of-truth.md` for boundary ownership.
 - Define fixed maps and enumerated arrays with `as const satisfies ...` so literal types stay narrow while TypeScript validates the complete shape.
 - Narrow `unknown`; do not use assertions to bypass validation.
 - Prefer immutable transformations when they clarify data flow. Contained local mutation is allowed when it is simpler and does not escape.

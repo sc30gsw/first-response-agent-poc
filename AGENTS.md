@@ -29,8 +29,8 @@ Key constraints (REQUIREMENT §8/§10):
 | `pnpm db:generate` | Generate Drizzle migrations (`drizzle-kit`)     |
 | `pnpm db:migrate`  | Apply migrations (`drizzle-kit`)                |
 
-Required env: `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` (+ `TURSO_DATABASE_URL` /
-`TURSO_AUTH_TOKEN` on Vercel). Existing environments may use `TURSO_URL` as a
+Required env: `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `AI_GATEWAY_API_KEY` (+
+`TURSO_DATABASE_URL` / `TURSO_AUTH_TOKEN` on Vercel). Existing environments may use `TURSO_URL` as a
 compatibility alias when `TURSO_DATABASE_URL` is unset. See
 [docs/ENVIRONMENT.md](docs/ENVIRONMENT.md).
 
@@ -40,6 +40,7 @@ compatibility alias when `TURSO_DATABASE_URL` is unset. See
 - Vitest is configured for deterministic tests under `tests/**/*.test.ts`.
 - No lint or format tooling exists. Do not invent lint/format commands.
 - Required quality gate: `pnpm test`, `pnpm typecheck`, and `pnpm build`.
+- For final review of React/Next.js changes, also run `npx react-doctor@latest --verbose --scope changed`.
 - Style: `.editorconfig` only (2-space indent, LF, final newline).
 - DB commands run `drizzle-kit` against `drizzle.config.ts` via the pnpm scripts
   (`pnpm db:generate` / `db:migrate`). Do not run ad-hoc `drizzle-kit` with other

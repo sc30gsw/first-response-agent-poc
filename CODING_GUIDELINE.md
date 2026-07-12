@@ -75,6 +75,8 @@ docs/    # アーキテクチャ、環境、運用ドキュメント
 - Zodスキーマが正本の場合、型は `z.infer` で導出します。
 - DB行が正本の場合、型はDrizzle schemaの `typeof table.$inferSelect` / `$inferInsert`（`server/db/schema/` がexportする `Thread`、`ThreadInsert`、`User` など）から導出します。行shapeやID型を `id: string` のように手書きで再定義しません。
 - 関連型は `Pick`、`Omit`、indexed access、`ReturnType` などから導出し、同じフィールドを再定義しません。
+- DB行と公開DTOで名前や表現が異なる項目（例：`stateVersion` → `revision`、`Date` → epoch number、JSON文字列 → 検証済みobject）は同一型に見せません。共通scalarだけを `Pick` / `Omit` で導出し、変換は明示的なmapperに集約します。
+- URL parameter、HTTP JSON、SDK responseなどの未検証値は、検証前からDB由来の型として扱いません。Zodなら `z.input` を境界入力、`z.output` を検証済み値の正本にします。
 - リテラル値を保持しつつ契約を検査する定数には `as const satisfies` を使います。
 - 内部関数の戻り値は型推論を優先します。公開境界、または `any` / `unknown` への拡大を防ぐ場合は明示します。
 - 信頼できない値は `unknown` として絞り込みます。型アサーションで境界検証を回避しません。
@@ -204,6 +206,8 @@ pnpm test
 pnpm typecheck
 pnpm build
 ```
+
+React / Next.js変更を含む最終レビューでは、上記3コマンドに加えて `npx react-doctor@latest --verbose --scope changed` を実行します。
 
 現在、repositoryにlint/formatter commandはありません。意図的に導入・設定されるまで、`pnpm lint`、`pnpm format`、`pnpm check`、`tsgo`、`oxlint`、`oxfmt`、`fallow`、`eve eval` を規約上のcommandとして扱いません。
 
