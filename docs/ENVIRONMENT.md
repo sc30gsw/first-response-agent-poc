@@ -17,6 +17,7 @@ cp .env.example .env
 | `TURSO_DATABASE_URL` | Vercel: 推奨 | リモート libSQL データベースの推奨URL名 |
 | `TURSO_URL` | 既存環境のみ | `TURSO_DATABASE_URL` が未設定の場合に使う互換alias |
 | `TURSO_AUTH_TOKEN` | Vercel: 必須 | リモート libSQL の認証トークン |
+| `AI_GATEWAY_API_KEY` | ローカル/CI: 必須 | Vercel AI Gateway の API キー。Vercel 上は OIDC で省略可能だが、本プロジェクトはキー単位の利用量追跡のため Production / Preview にも設定する |
 
 参照実装: [`server/utils/auth.ts`](../server/utils/auth.ts), [`server/db/config.ts`](../server/db/config.ts)
 
@@ -41,9 +42,12 @@ rm -rf .data && pnpm db:migrate
 
 ## AIプロバイダ
 
-AI プロバイダのキーは `.env.example` に定義していません。LLM のモデル設定は [`agent/agent.ts`](../agent/agent.ts) で管理します。
+LLM のモデル設定は [`agent/agent.ts`](../agent/agent.ts) に集約します。一般向け文書には固定のモデル名を記載せず、呼び出しは **Vercel AI Gateway 経由**でルーティングします（`node_modules/eve/docs/guides/deployment.md` 参照）。
 
-Vercel 上では Eve がプラットフォーム経由でプロバイダ設定を扱います。ローカル開発では利用するプロバイダに応じて Eve の同梱ドキュメント（`node_modules/eve/docs/`）を参照してください。
+- **ローカル開発 / CI**: `AI_GATEWAY_API_KEY` が必須。AI Gateway ダッシュボードで作成したキーの値を `.env` に設定する
+- **Vercel（Production / Preview）**: プロジェクトをリンクすれば OIDC で自動認証されるため技術的には省略可能。ただし本プロジェクトでは、利用量を名前付きキーに紐づけて追跡・失効管理するため、明示的に `AI_GATEWAY_API_KEY` を設定する運用とする
+
+コスト管理（予算・キー失効・アプリ側レートリミットの二重防衛）は [README の「AI Gateway のコスト管理」](../README.md#ai-gateway-のコスト管理) を参照してください。
 
 ## データ保持
 

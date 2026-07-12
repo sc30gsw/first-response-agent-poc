@@ -87,7 +87,19 @@ Vercel では [`vercel.json`](../vercel.json) のサービス設定により `we
 
 Elysiaは `/api/v1/threads` と `/api/v1/threads/:id` を公開します。`server/api/` はBetter Auth認証、same-origin、Content-Type・body上限、If-Match解析、HTTP status/header変換を担当します。`server/application/thread-service.ts` は認証済みuser ID、plain DTO、expected revisionを受け取り、repository interfaceだけへ依存して所有権付きDB処理を行います。想定内失敗は `better-result` のtyped errorとして合成し、HTTP境界で401・403・404・409・413・415・428・429・500へ変換します。
 
-OpenAPI UIは `/api/v1/openapi`、JSON仕様は `/api/v1/openapi/json` です。If-Matchの必須性とETag response headerも機械可読な契約として公開します。ブラウザadapterは成功・エラーの両方をruntime検証し、TanStack Queryへplain値または `ThreadApiClientError` を返します。
+OpenAPI UIは `/api/v1/openapi`、JSON仕様は `/api/v1/openapi/json` です。If-Matchの必須性とETag response headerも機械可読な契約として公開します。ブラウザadapterは成功・エラーの両方をruntime検証し、TanStack Queryへplain値または `ThreadApiClientError` を返します。API errorの `retryable` をそのまま引き継ぎ、破損stateなどの恒久エラーを自動再試行しません。
+
+## 型の正本
+
+型の正本はデータの所有境界ごとに分けます。DB行とinsert型はDrizzle schema、未検証のHTTP・永続化JSON・ダミーJSON・Eveツール契約はZod、frameworkやSDKの契約は各公開型またはfactoryを正本とします。
+
+- DB由来のID、revision、列型は `$inferSelect` / `$inferInsert`、indexed access、`Pick` / `Omit` から導出する
+- Zod境界ではparse前を `z.input`、parse後を `z.output` とし、手書きDTOを別の正本にしない
+- SDKとadapterの型は `Parameters` / `ReturnType` / `Awaited` から導出する
+- DB行から公開DTOへ名前変更または直列化する値は、共通scalarだけを導出し、1か所のmapperで明示的に変換する
+- 保存済みJSONの破損は欠損値へ変換せず、typed `Result` errorとしてApplication Serviceまで伝播する
+
+AI実装向けの詳細規則は [`.agents/rules/typescript/type-source-of-truth.md`](../.agents/rules/typescript/type-source-of-truth.md)、利用者向けの規約は [`CODING_GUIDELINE.md`](../CODING_GUIDELINE.md)、プロダクト要件は [`REQUIREMENT.md` §13.3](../REQUIREMENT.md#133-型の正本) を参照します。
 
 ## データベース
 
