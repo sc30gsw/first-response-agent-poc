@@ -57,7 +57,7 @@ export const AnalyzeCaseInputSchema = z.object({
 
 export default defineTool({
   description:
-    "Create an initial-response report from structured case information. This tool deterministically returns priority, similar cases, internal guides, and expert candidates. Do not alter its ranking, scores, or evidence. Use it for both a new inquiry's initial analysis and a reanalysis after additional information.",
+    "Create an initial-response report from structured case information. This tool deterministically returns priority, similar cases, internal guides, and expert candidates. Do not alter its ranking, scores, or evidence. Use it for both a new inquiry's initial analysis and a reanalysis after additional information. When the user provides additional case facts, call this tool with analysisType reanalysis before writing any assistant acknowledgement or status message.",
   inputSchema: AnalyzeCaseInputSchema,
   outputSchema: AnalyzeCaseOutputSchema,
   execute(input) {

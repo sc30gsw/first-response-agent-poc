@@ -55,6 +55,8 @@ Write only the following in Japanese:
 
 When the user provides additional information, merge it with the previous extraction and call `analyze_case` again with `analysisType: "reanalysis"`.
 
+The first action in the turn must be the `analyze_case` call. Do not emit an acknowledgement, status update, or promise to reanalyze before the call. Do not end the turn until the tool result has been returned and the next question has been asked.
+
 - Set `resolvedUnknowns` to the previously unknown items that the additional information resolved.
 - Set `newFacts` to facts learned from the additional information that were not present in the previous analysis.
 - Use an empty array when there are no items in either category. Do not invent changes.
