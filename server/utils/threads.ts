@@ -4,8 +4,23 @@ import type { ThreadRecord, ThreadState, ThreadSummary } from "@/shared/types/th
 import { ThreadStateSchema } from "@/shared/eve-events";
 import { normalizeThreadSummary, truncateThreadTitle } from "@/shared/types/thread";
 import { db, type AppDatabase } from "../db/client";
-import { threads } from "../db/schema/threads";
+import { threads, type Thread, type ThreadInsert } from "../db/schema/threads";
 import { revokeEveSessionsForThread } from "./eve-sessions";
+
+type Equals<A, B> = (<T>() => T extends A ? 1 : 2) extends (<T>() => T extends B ? 1 : 2)
+  ? true
+  : false;
+type Assert<T extends true> = T;
+
+// Compile-time SSoT guards: the wire DTO must stay in sync with the Drizzle row.
+type _ThreadSummaryMatchesRow = Assert<Equals<
+  Pick<ThreadSummary, "id" | "title" | "summary">,
+  Pick<Thread, "id" | "title" | "summary">
+>>;
+type _ThreadRevisionMatchesRow = Assert<Equals<
+  ThreadSummary["revision"],
+  Thread["stateVersion"]
+>>;
 
 const LIST_LIMIT = 50;
 export const MAX_THREADS_PER_USER = 25;
@@ -51,7 +66,7 @@ function mergeThreadState(existing: ThreadState | null, incoming: ThreadState): 
   };
 }
 
-function rowToSummary(row: typeof threads.$inferSelect): ThreadSummary {
+function rowToSummary(row: Thread): ThreadSummary {
   return {
     id: row.id,
     title: row.title,
@@ -62,7 +77,7 @@ function rowToSummary(row: typeof threads.$inferSelect): ThreadSummary {
   };
 }
 
-function rowToRecord(row: typeof threads.$inferSelect): ThreadRecord {
+function rowToRecord(row: Thread): ThreadRecord {
   return {
     ...rowToSummary(row),
     state: parseThreadState(row.state),
@@ -70,7 +85,7 @@ function rowToRecord(row: typeof threads.$inferSelect): ThreadRecord {
 }
 
 export async function listThreadsForUser(
-  userId: string,
+  userId: Thread["userId"],
   database: AppDatabase = db,
 ): Promise<ThreadSummary[]> {
   const rows = await database.select()
@@ -83,8 +98,8 @@ export async function listThreadsForUser(
 }
 
 export async function getThreadForUser(
-  userId: string,
-  id: string,
+  userId: Thread["userId"],
+  id: Thread["id"],
   database: AppDatabase = db,
 ) {
   const [row] = await database.select()
@@ -99,8 +114,8 @@ export async function getThreadForUser(
 }
 
 export async function createThreadForUser(
-  userId: string,
-  input: { title?: string; summary?: string },
+  userId: Thread["userId"],
+  input: Partial<Pick<ThreadInsert, "title" | "summary">>,
   database: AppDatabase = db,
 ) {
   const [total] = await database.select({ value: count() })
@@ -129,10 +144,10 @@ export async function createThreadForUser(
 }
 
 export async function updateThreadForUser(
-  userId: string,
-  id: string,
+  userId: Thread["userId"],
+  id: Thread["id"],
   patch: {
-    title?: string;
+    title?: Thread["title"];
     state?: ThreadState;
   },
   expectedRevision: number,
@@ -167,8 +182,8 @@ export async function updateThreadForUser(
 }
 
 export async function deleteThreadForUser(
-  userId: string,
-  id: string,
+  userId: Thread["userId"],
+  id: Thread["id"],
   database: AppDatabase = db,
 ) {
   const [deleted] = await database.delete(threads)

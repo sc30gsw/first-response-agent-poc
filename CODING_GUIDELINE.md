@@ -73,7 +73,8 @@ docs/    # アーキテクチャ、環境、運用ドキュメント
 
 - オブジェクト型やunionには原則として `type` を使います。宣言マージまたは外部APIとの整合に利点がある場合のみ `interface` を使います。
 - Zodスキーマが正本の場合、型は `z.infer` で導出します。
-- 関連型は `Pick`、`Omit`、indexed accessなどから導出し、同じフィールドを再定義しません。
+- DB行が正本の場合、型はDrizzle schemaの `typeof table.$inferSelect` / `$inferInsert`（`server/db/schema/` がexportする `Thread`、`ThreadInsert`、`User` など）から導出します。行shapeやID型を `id: string` のように手書きで再定義しません。
+- 関連型は `Pick`、`Omit`、indexed access、`ReturnType` などから導出し、同じフィールドを再定義しません。
 - リテラル値を保持しつつ契約を検査する定数には `as const satisfies` を使います。
 - 内部関数の戻り値は型推論を優先します。公開境界、または `any` / `unknown` への拡大を防ぐ場合は明示します。
 - 信頼できない値は `unknown` として絞り込みます。型アサーションで境界検証を回避しません。

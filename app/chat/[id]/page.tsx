@@ -4,10 +4,11 @@ import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { NotFoundError } from "@/server/application/thread-errors";
 import { threadApplicationService } from "@/server/application/thread-service";
+import type { ThreadSummary } from "@/shared/types/thread";
 import { EveChat } from "../../_components/eve-chat";
 
 type ChatPageProps = {
-  readonly params: Promise<{ readonly id: string }>;
+  readonly params: Promise<{ readonly id: ThreadSummary["id"] }>;
 };
 
 export default async function ChatPage({ params }: ChatPageProps) {

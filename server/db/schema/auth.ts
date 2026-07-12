@@ -106,3 +106,6 @@ export const accountRelations = relations(account, ({ one }) => ({
     references: [user.id],
   }),
 }));
+
+/** Single source of truth: auth row types derive from the Drizzle schema. */
+export type User = typeof user.$inferSelect;

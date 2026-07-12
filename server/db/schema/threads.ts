@@ -28,3 +28,7 @@ export const threadsRelations = relations(threads, ({ one }) => ({
     references: [user.id],
   }),
 }));
+
+/** Single source of truth: thread row types derive from the Drizzle schema. */
+export type Thread = typeof threads.$inferSelect;
+export type ThreadInsert = typeof threads.$inferInsert;

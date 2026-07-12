@@ -3,14 +3,15 @@ import { db, type AppDatabase } from "../db/client";
 import { eveSessionBindings } from "../db/schema/security";
 
 type EveSessionDatabase = Pick<AppDatabase, "update">;
+type EveSessionBinding = typeof eveSessionBindings.$inferSelect;
 
 function revocationTimestamp() {
   return new Date();
 }
 
 export async function revokeEveSessionsForThread(
-  userId: string,
-  threadId: string,
+  userId: EveSessionBinding["userId"],
+  threadId: EveSessionBinding["threadId"],
   database: EveSessionDatabase = db,
 ) {
   const timestamp = revocationTimestamp();
@@ -24,7 +25,7 @@ export async function revokeEveSessionsForThread(
 }
 
 export async function revokeEveSessionsForUser(
-  userId: string,
+  userId: EveSessionBinding["userId"],
   database: EveSessionDatabase = db,
 ) {
   const timestamp = revocationTimestamp();

@@ -10,6 +10,7 @@ import {
 } from "../application/thread-service";
 import type { ThreadApplicationError } from "../application/thread-errors";
 import { LimitError, ValidationError } from "../application/thread-errors";
+import type { User } from "../db/schema/auth";
 import { getSessionUserId } from "../utils/session";
 import { readLimitedJsonBody } from "./body-parser";
 import { threadApiSchemas, threadErrorResponses } from "./contracts";
@@ -152,7 +153,7 @@ function threadApplicationResponse<T extends { readonly thread: { readonly revis
 }
 
 async function runAuthenticated<T>(args: {
-  readonly action: (userId: string) => Promise<Result<T, ThreadApplicationError>>;
+  readonly action: (userId: User["id"]) => Promise<Result<T, ThreadApplicationError>>;
   readonly getUserId: GetAuthenticatedUserId;
   readonly operation: ThreadApplicationError["operation"];
   readonly request: Request;
@@ -168,7 +169,7 @@ async function runAuthenticated<T>(args: {
 }
 
 async function runAuthenticatedMutation<T>(args: {
-  readonly action: (userId: string) => Promise<Result<T, ThreadApplicationError>>;
+  readonly action: (userId: User["id"]) => Promise<Result<T, ThreadApplicationError>>;
   readonly getUserId: GetAuthenticatedUserId;
   readonly operation: "create-thread" | "delete-thread" | "update-thread";
   readonly request: Request;

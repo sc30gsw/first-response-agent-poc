@@ -1,4 +1,5 @@
 import { Result } from "better-result";
+import type { User } from "../db/schema/auth";
 import {
   DatabaseError,
   ForbiddenError,
@@ -15,13 +16,13 @@ type MutationOperation = Extract<
 
 export type GetAuthenticatedUserId = (
   headers: Headers,
-) => Promise<string | null>;
+) => Promise<User["id"] | null>;
 
 export async function authenticateThreadRequest(
   headers: Headers,
   operation: ThreadOperation,
   getUserId: GetAuthenticatedUserId,
-): Promise<Result<string, UnauthorizedError | DatabaseError>> {
+): Promise<Result<User["id"], UnauthorizedError | DatabaseError>> {
   const authenticated = await Result.tryPromise({
     try: () => getUserId(headers),
     catch: cause => new DatabaseError({

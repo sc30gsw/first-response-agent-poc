@@ -332,7 +332,7 @@ type AgentStatus = ReturnType<typeof useEveAgent>["status"];
 function ChatHeader({ isBusy, status, title }: {
   readonly isBusy: boolean;
   readonly status: AgentStatus;
-  readonly title: string;
+  readonly title: ThreadSummary["title"];
 }) {
   return (
     <header className="chat-header">

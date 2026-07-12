@@ -353,6 +353,70 @@ describe("Eve WebチャネルのHTTPセキュリティ", () => {
     expect(statuses).toEqual([202, 202, 429]);
   });
 
+  it("全ユーザー合算のグローバル日次上限を超えると429を返す", async () => {
+    const security = createEveSecurity({
+      database: context.database,
+      getSession: (headers) => context.auth.api.getSession({ headers }),
+      secret: "unit-test-secret-key-0123456789",
+      limits: {
+        userPerMinute: 10,
+        userPerDay: 10,
+        ipPerHour: 100,
+        globalPerDay: 3,
+        maxConcurrent: 1,
+        leaseSeconds: 60,
+        maxMessageChars: 100,
+        maxBodyBytes: 4_096,
+      },
+    });
+    const channel = eveChannel({
+      auth: security.auth,
+      events: security.events,
+      uploadPolicy: "disabled",
+    });
+    const sessionRoute = channel.routes.find((candidate) => (
+      candidate.transport !== "websocket"
+        && candidate.method === "POST"
+        && candidate.path === "/eve/v1/session"
+    )) as HttpRouteDefinition;
+    let sequence = 0;
+    const localArgs = {
+      ...context.args,
+      async send(_input, options) {
+        const session = fakeSession(`eve-session-global-${sequence += 1}`);
+        context.sessions.set(session.id, session);
+        await security.bindSessionFromAuth(session.id, options.auth);
+        await security.releaseLeaseFromAuth(options.auth);
+        return session;
+      },
+    } satisfies RouteHandlerArgs;
+
+    const userA = await signIn("198.51.100.61");
+    const userB = await signIn("198.51.100.62");
+    const threadA = await createThread(userA);
+    const threadB = await createThread(userB);
+    const turns = [
+      { cookie: userA, threadId: threadA, ip: "198.51.100.61" },
+      { cookie: userA, threadId: threadA, ip: "198.51.100.61" },
+      { cookie: userB, threadId: threadB, ip: "198.51.100.62" },
+      { cookie: userB, threadId: threadB, ip: "198.51.100.62" },
+    ];
+    const responses: Response[] = [];
+    for (const [index, turn] of turns.entries()) {
+      responses.push(await sessionRoute.handler(
+        eveRequest("/eve/v1/session", "POST", turn.cookie, turn.threadId, {
+          message: `相談${index}`,
+        }, { "x-forwarded-for": turn.ip }),
+        localArgs,
+      ));
+    }
+
+    expect(responses.map((response) => response.status)).toEqual([202, 202, 202, 429]);
+    const last = responses[3] as Response;
+    expect(last.headers.get("retry-after")).toBeTruthy();
+    expect(await last.json()).toMatchObject({ code: "rate_limit_exceeded", ok: false });
+  });
+
   it("同一ユーザーの実行中ターンを共有DBリースで1件に制限する", async () => {
     const cookie = await signIn("198.51.100.38");
     const threadId = await createThread(cookie);

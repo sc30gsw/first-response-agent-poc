@@ -3,6 +3,7 @@ import type { z } from "zod";
 import type { ThreadRecord, ThreadSummary } from "@/shared/types/thread";
 import type { AppDatabase } from "../db/client";
 import { db } from "../db/client";
+import type { Thread } from "../db/schema/threads";
 import {
   createThreadBodySchema,
   patchThreadBodySchema,
@@ -28,19 +29,20 @@ import {
 
 type ThreadOperation = ThreadApplicationError["operation"];
 type CreateThreadInput = z.input<typeof createThreadBodySchema>;
+
 type PatchThreadInput = z.input<typeof patchThreadBodySchema>;
 
 export interface ThreadRepository {
   readonly create: (
-    userId: string,
+    userId: Thread["userId"],
     input: z.output<typeof createThreadBodySchema>,
   ) => Promise<ThreadRecord>;
-  readonly delete: (userId: string, id: string) => Promise<boolean>;
-  readonly get: (userId: string, id: string) => Promise<ThreadRecord | undefined>;
-  readonly list: (userId: string) => Promise<ThreadSummary[]>;
+  readonly delete: (userId: Thread["userId"], id: Thread["id"]) => Promise<boolean>;
+  readonly get: (userId: Thread["userId"], id: Thread["id"]) => Promise<ThreadRecord | undefined>;
+  readonly list: (userId: Thread["userId"]) => Promise<ThreadSummary[]>;
   readonly update: (
-    userId: string,
-    id: string,
+    userId: Thread["userId"],
+    id: Thread["id"],
     patch: z.output<typeof patchThreadBodySchema>,
     expectedRevision: number,
   ) => Promise<ThreadRecord | undefined>;
@@ -139,7 +141,7 @@ export function createThreadApplicationService(
 ) {
   return {
     async list(
-      userId: string,
+      userId: Thread["userId"],
     ): Promise<Result<{ readonly threads: ThreadSummary[] }, ThreadApplicationError>> {
       const threads = await runRepository(
         "list-threads",
@@ -151,7 +153,7 @@ export function createThreadApplicationService(
     },
 
     async get(
-      userId: string,
+      userId: Thread["userId"],
       id: unknown,
     ): Promise<Result<{ readonly thread: ThreadRecord }, ThreadApplicationError>> {
       return Result.gen(async function* () {
@@ -174,7 +176,7 @@ export function createThreadApplicationService(
     },
 
     async create(
-      userId: string,
+      userId: Thread["userId"],
       input: CreateThreadInput,
     ): Promise<Result<{ readonly thread: ThreadRecord }, ThreadApplicationError>> {
       return Result.gen(async function* () {
@@ -191,7 +193,7 @@ export function createThreadApplicationService(
       readonly expectedRevision: number;
       readonly id: unknown;
       readonly input: PatchThreadInput;
-      readonly userId: string;
+      readonly userId: Thread["userId"];
     }): Promise<Result<{ readonly thread: ThreadRecord }, ThreadApplicationError>> {
       return Result.gen(async function* () {
         const params = yield* validate(threadIdParamsSchema, { id: args.id }, "update-thread");
@@ -215,7 +217,7 @@ export function createThreadApplicationService(
     },
 
     async delete(
-      userId: string,
+      userId: Thread["userId"],
       id: unknown,
     ): Promise<Result<{ readonly ok: true }, ThreadApplicationError>> {
       return Result.gen(async function* () {

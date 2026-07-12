@@ -44,24 +44,24 @@ export type ThreadTransportResult = {
 
 export interface ThreadApiTransport {
   readonly create: (input: CreateThreadInput) => Promise<ThreadTransportResult>;
-  readonly delete: (id: string) => Promise<ThreadTransportResult>;
-  readonly get: (id: string) => Promise<ThreadTransportResult>;
+  readonly delete: (id: ThreadSummary["id"]) => Promise<ThreadTransportResult>;
+  readonly get: (id: ThreadSummary["id"]) => Promise<ThreadTransportResult>;
   readonly list: () => Promise<ThreadTransportResult>;
   readonly update: (args: {
-    readonly expectedRevision: number;
-    readonly id: string;
+    readonly expectedRevision: ThreadSummary["revision"];
+    readonly id: ThreadSummary["id"];
     readonly input: PatchThreadInput;
   }) => Promise<ThreadTransportResult>;
 }
 
 export interface ThreadApiClient {
   readonly create: (input: CreateThreadInput) => Promise<ThreadRecord>;
-  readonly delete: (id: string) => Promise<void>;
-  readonly get: (id: string) => Promise<ThreadRecord>;
+  readonly delete: (id: ThreadSummary["id"]) => Promise<void>;
+  readonly get: (id: ThreadSummary["id"]) => Promise<ThreadRecord>;
   readonly list: () => Promise<ThreadSummary[]>;
   readonly update: (args: {
-    readonly expectedRevision: number;
-    readonly id: string;
+    readonly expectedRevision: ThreadSummary["revision"];
+    readonly id: ThreadSummary["id"];
     readonly input: PatchThreadInput;
   }) => Promise<ThreadRecord>;
 }

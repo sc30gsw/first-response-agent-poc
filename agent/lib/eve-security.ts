@@ -9,12 +9,13 @@ import { MAX_CHAT_MESSAGE_CHARS } from "@/shared/chat-limits";
 import { ThreadStateSchema } from "@/shared/eve-events";
 import type { AppDatabase } from "@/server/db/client";
 import { db } from "@/server/db/client";
+import type { User } from "@/server/db/schema/auth";
 import {
   agentRateLimits,
   agentRunLeases,
   eveSessionBindings,
 } from "@/server/db/schema/security";
-import { threads } from "@/server/db/schema/threads";
+import { threads, type Thread } from "@/server/db/schema/threads";
 import { readJsonBody, validateSameOrigin } from "@/server/utils/http-security";
 
 const threadIdSchema = z.string().trim().uuid();
@@ -49,6 +50,7 @@ export type EveSecurityLimits = {
   readonly userPerMinute: number;
   readonly userPerDay: number;
   readonly ipPerHour: number;
+  readonly globalPerDay: number;
   readonly maxConcurrent: number;
   readonly leaseSeconds: number;
   readonly maxMessageChars: number;
@@ -59,6 +61,7 @@ const DEFAULT_LIMITS = {
   userPerMinute: 8,
   userPerDay: 50,
   ipPerHour: 120,
+  globalPerDay: 200,
   maxConcurrent: 1,
   leaseSeconds: 180,
   maxMessageChars: MAX_CHAT_MESSAGE_CHARS,
@@ -66,11 +69,7 @@ const DEFAULT_LIMITS = {
 } as const satisfies EveSecurityLimits;
 
 type AppSession = {
-  readonly user: {
-    readonly id: string;
-    readonly email: string;
-    readonly name: string;
-  };
+  readonly user: Readonly<Pick<User, "id" | "email" | "name">>;
 } | null;
 
 type CreateEveSecurityOptions = {
@@ -251,7 +250,7 @@ function validateTurnPayload(
   return Result.ok(payload);
 }
 
-function requestIp(request: Request, userId: string) {
+function requestIp(request: Request, userId: User["id"]) {
   const raw = process.env.VERCEL
     ? request.headers.get("x-vercel-forwarded-for")
     : request.headers.get("x-forwarded-for") ?? request.headers.get("x-real-ip");
@@ -431,7 +430,7 @@ export function createEveSecurity(options: CreateEveSecurityOptions) {
     });
   }
 
-  async function acquireLease(userId: string) {
+  async function acquireLease(userId: User["id"]) {
     const now = new Date();
     const leaseId = crypto.randomUUID();
     const subjectKey = keyedHash(`lease:${userId}`);
@@ -539,10 +538,10 @@ export function createEveSecurity(options: CreateEveSecurityOptions) {
 
   async function verifySessionBinding(
     sessionId: string,
-    userId: string,
-    threadId: string,
-    threadState: string | null,
-    threadRevision: number,
+    userId: User["id"],
+    threadId: Thread["id"],
+    threadState: Thread["state"],
+    threadRevision: Thread["stateVersion"],
   ) {
     return Result.gen(async function* () {
       const initialBindings = yield* Result.await(runDatabase(
@@ -690,6 +689,12 @@ export function createEveSecurity(options: CreateEveSecurityOptions) {
           ip,
           3_600,
           limits.ipPerHour,
+        ));
+        yield* Result.await(consumeCounter(
+          "global-day",
+          "all",
+          86_400,
+          limits.globalPerDay,
         ));
         leaseId = yield* Result.await(acquireLease(session.user.id));
       }
