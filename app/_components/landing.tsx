@@ -14,6 +14,7 @@ export function Landing() {
     mutationFn: anonymousAuth.signInAnonymous,
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: authQueryKeys.all });
+      router.replace("/");
       router.refresh();
     },
     retry: false,
