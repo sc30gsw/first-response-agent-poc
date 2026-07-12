@@ -64,6 +64,7 @@ export function EveChat({ thread, threads }: EveChatProps) {
   const pendingSummaryRef = useRef<string | null>(null);
   const [announcement, setAnnouncement] = useState("");
   const [canRetrySave, setCanRetrySave] = useState(false);
+  const [draft, setDraft] = useState("");
   const [saveError, setSaveError] = useState<string | null>(null);
   const [sendError, setSendError] = useState<string | null>(null);
   const saveThreadMutation = useMutation({
@@ -189,7 +190,7 @@ export function EveChat({ thread, threads }: EveChatProps) {
     initialSession: thread.state?.session,
     onError() {
       const pendingMessage = pendingComposerMessageRef.current;
-      if (pendingMessage && inputRef.current) inputRef.current.value = pendingMessage;
+      if (pendingMessage) setDraft(pendingMessage);
       setSendError("処理に失敗しました。入力内容を確認して再度お試しください。");
       setAnnouncement("処理に失敗しました。入力内容を確認して再度お試しください。");
     },
@@ -241,8 +242,8 @@ export function EveChat({ thread, threads }: EveChatProps) {
       },
       catch: cause => cause,
     });
-    if (!Result.isError(restored) && restored.value && inputRef.current) {
-      inputRef.current.value = restored.value;
+    if (!Result.isError(restored) && restored.value) {
+      setDraft(restored.value);
     }
   }, [draftStorageKey]);
 
@@ -267,24 +268,23 @@ export function EveChat({ thread, threads }: EveChatProps) {
   }
 
   function appendExample(example: string) {
-    const input = inputRef.current;
-    if (!input) return;
-    const current = input.value.trim();
-    const nextValue = current ? `${current}\n${example}` : example;
-    input.value = nextValue.slice(0, MAX_CHAT_MESSAGE_CHARS);
-    input.focus();
+    setDraft((current) => {
+      const nextValue = current.trim() ? `${current}\n${example}` : example;
+      return nextValue.slice(0, MAX_CHAT_MESSAGE_CHARS);
+    });
+    inputRef.current?.focus();
   }
 
   async function submitMessage(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
-    const message = inputRef.current?.value.trim() ?? "";
+    const message = draft.trim();
     if (!message || isBusy) return;
 
     setAnnouncement("");
     pendingComposerMessageRef.current = message;
     const isFirstMessage = !summaryInitializedRef.current;
     if (isFirstMessage) pendingSummaryRef.current = normalizeThreadSummary(message);
-    if (inputRef.current) inputRef.current.value = "";
+    setDraft("");
     const sent = await sendAgentInput(
       { message },
       "メッセージを送信できませんでした。再度お試しください。",
@@ -294,10 +294,8 @@ export function EveChat({ thread, threads }: EveChatProps) {
       return;
     }
     if (isFirstMessage) pendingSummaryRef.current = null;
-    if (inputRef.current) {
-      inputRef.current.value = message;
-      pendingComposerMessageRef.current = null;
-    }
+    setDraft(message);
+    pendingComposerMessageRef.current = null;
   }
 
   async function respondToRequest(
@@ -339,8 +337,10 @@ export function EveChat({ thread, threads }: EveChatProps) {
         />
         <InputGuidance disabled={isBusy} onAppendExample={appendExample} />
         <ChatComposer
+          draft={draft}
           inputRef={inputRef}
           isBusy={isBusy}
+          onDraftChange={setDraft}
           onStop={agent.stop}
           onSubmit={submitMessage}
         />
@@ -484,9 +484,11 @@ function InputGuidance({ disabled, onAppendExample }: {
   );
 }
 
-function ChatComposer({ inputRef, isBusy, onStop, onSubmit }: {
+function ChatComposer({ draft, inputRef, isBusy, onDraftChange, onStop, onSubmit }: {
+  readonly draft: string;
   readonly inputRef: RefObject<HTMLTextAreaElement | null>;
   readonly isBusy: boolean;
+  readonly onDraftChange: (draft: string) => void;
   readonly onStop: () => void;
   readonly onSubmit: (event: SubmitEvent<HTMLFormElement>) => Promise<void>;
 }) {
@@ -498,10 +500,12 @@ function ChatComposer({ inputRef, isBusy, onStop, onSubmit }: {
         id="chat-input"
         rows={4}
         maxLength={MAX_CHAT_MESSAGE_CHARS}
+        value={draft}
         aria-describedby="chat-input-hint chat-privacy-reminder"
         disabled={isBusy}
         placeholder="相談内容、または追加で分かったことを入力…"
         className="w-full resize-y border-0 bg-transparent text-[0.94rem] leading-[1.85] text-ink outline-none"
+        onChange={(event) => onDraftChange(event.target.value)}
       />
       <div className="flex items-center justify-between gap-5 border-t border-[#e7eceb] pt-3.5 max-sm:flex-col max-sm:items-stretch">
         <p id="chat-privacy-reminder" className="m-0 flex items-center gap-[7px] text-[0.72rem] text-[#75581d]"><span className="grid size-[18px] place-items-center rounded-full bg-amber-pale font-black" aria-hidden="true">!</span> 個人情報は入力しないでください</p>
