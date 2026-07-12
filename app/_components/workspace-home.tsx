@@ -96,10 +96,9 @@ export function WorkspaceHome({ threads }: { readonly threads: readonly ThreadSu
 
         <section className="mt-7 rounded-[14px] border border-control-line bg-paper p-5 shadow-[0_18px_50px_rgb(16_38_59/7%)] focus-within:border-teal focus-within:shadow-[0_0_0_3px_rgb(25_119_113/15%),0_18px_50px_rgb(16_38_59/7%)]" aria-labelledby="composer-heading">
           <div className="mb-[13px] flex items-center justify-between">
-            <h2 id="composer-heading" className="m-0 text-[0.9rem] tracking-[0.04em]">相談内容</h2>
+            <label htmlFor="case-input" className="m-0 text-base tracking-[0.04em] cursor-text">相談内容</label>
             <span className="text-[0.7rem] text-ink-soft">{draft.length.toLocaleString("ja-JP")} / {MAX_CHAT_MESSAGE_CHARS.toLocaleString("ja-JP")} 文字</span>
           </div>
-          <label className="visually-hidden" htmlFor="case-input">相談内容</label>
           <textarea
             ref={textareaRef}
             id="case-input"
