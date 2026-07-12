@@ -36,6 +36,9 @@ const INPUT_EXAMPLES = [
   "接道状況は不明で、売却までの期限もまだ決まっていません。",
 ] as const satisfies readonly string[];
 
+const REANALYSIS_CLIENT_CONTEXT =
+  "このメッセージは案件の追加情報です。同じターンの最初のアクションとして analyze_case を analysisType: reanalysis で呼び出し、ツール結果が返る前に確認文や『再分析します』という予告を出さないでください。";
+
 const EYEBROW = "mb-3 text-[0.8rem] font-bold tracking-[0.12em] text-[#176c67]";
 const PRIMARY_BUTTON = "inline-flex min-h-11 items-center justify-center gap-[22px] rounded-[10px] bg-navy px-[18px] py-2.5 font-bold text-white hover:bg-navy-deep disabled:cursor-wait disabled:opacity-[.62]";
 const SECONDARY_BUTTON = "min-h-10 cursor-pointer rounded-lg border border-control-line bg-white px-3.5 py-2 font-extrabold text-navy hover:border-teal hover:bg-teal-pale disabled:cursor-wait disabled:opacity-[.62]";
@@ -58,6 +61,8 @@ export function EveChat({ thread, threads }: EveChatProps) {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const draftStorageKey = useRef(`thread-draft:${thread.id}`).current;
   const pendingComposerMessageRef = useRef<string | null>(null);
+  const expectsAnalysisActionRef = useRef(false);
+  const receivedAnalysisActionRef = useRef(false);
   const [announcement, setAnnouncement] = useState("");
   const [draft, setDraft] = useState(() => readAndClearDraft(draftStorageKey));
   const [sendError, setSendError] = useState<string | null>(null);
@@ -84,6 +89,13 @@ export function EveChat({ thread, threads }: EveChatProps) {
         return;
       }
 
+      if (
+        parsed.data.type === "actions.requested"
+        && parsed.data.data.actions.some(action => action.kind === "tool-call" && action.toolName === "analyze_case")
+      ) {
+        receivedAnalysisActionRef.current = true;
+      }
+
       persistence.eventsRef.current = [...persistence.eventsRef.current, parsed.data];
       persistence.enqueueStateSave(persistence.currentThreadState());
     },
@@ -92,7 +104,19 @@ export function EveChat({ thread, threads }: EveChatProps) {
       persistence.enqueueStateSave(persistence.currentThreadState());
     },
     onFinish(snapshot) {
-      if (!snapshot.error) {
+      const boundary = snapshot.events.at(-1)?.type;
+      const completedWithoutAnalysis = !snapshot.error
+        && expectsAnalysisActionRef.current
+        && !receivedAnalysisActionRef.current
+        && (boundary === "session.waiting" || boundary === "session.completed");
+
+      if (completedWithoutAnalysis) {
+        const pendingMessage = pendingComposerMessageRef.current;
+        if (pendingMessage) setDraft(pendingMessage);
+        const message = "AIが分析ツールを実行せずに回答を終了しました。入力内容を残したため、もう一度送信してください。";
+        setSendError(message);
+        setAnnouncement(message);
+      } else if (!snapshot.error) {
         pendingComposerMessageRef.current = null;
         setSendError(null);
       }
@@ -103,9 +127,13 @@ export function EveChat({ thread, threads }: EveChatProps) {
         persistence.enqueueStateSave(persistence.currentThreadState());
       }
 
-      const boundary = snapshot.events.at(-1)?.type;
-      if (!snapshot.error && (boundary === "session.waiting" || boundary === "session.completed")) {
+      if (!completedWithoutAnalysis && !snapshot.error && (boundary === "session.waiting" || boundary === "session.completed")) {
         setAnnouncement("初動支援AIの回答が完了しました。");
+      }
+
+      if (snapshot.error || boundary === "session.waiting" || boundary === "session.completed") {
+        expectsAnalysisActionRef.current = false;
+        receivedAnalysisActionRef.current = false;
       }
     },
   });
@@ -147,10 +175,15 @@ export function EveChat({ thread, threads }: EveChatProps) {
 
     setAnnouncement("");
     pendingComposerMessageRef.current = message;
+    expectsAnalysisActionRef.current = true;
+    receivedAnalysisActionRef.current = false;
     const isFirstMessage = persistence.beginFirstMessageSummaryIfNeeded(message, normalizeThreadSummary);
     setDraft("");
     const sent = await sendAgentInput(
-      { message },
+      {
+        message,
+        ...(!isFirstMessage && { clientContext: REANALYSIS_CLIENT_CONTEXT }),
+      },
       "メッセージを送信できませんでした。再度お試しください。",
     );
     if (sent) {
@@ -160,6 +193,8 @@ export function EveChat({ thread, threads }: EveChatProps) {
     if (isFirstMessage) persistence.rollbackFirstMessageSummary();
     setDraft(message);
     pendingComposerMessageRef.current = null;
+    expectsAnalysisActionRef.current = false;
+    receivedAnalysisActionRef.current = false;
   }
 
   async function respondToRequest(
