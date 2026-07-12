@@ -1,8 +1,9 @@
 packages:
   - "."
 
+minimumReleaseAge: 10080
+trustPolicy: no-downgrade
 minimumReleaseAgeExclude:
   - eve
-  - "@vercel/connect"
 allowBuilds:
   sharp: false

@@ -1,0 +1,1 @@
+../../../.agents/rules/framework/nextjs-react.md

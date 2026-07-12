@@ -1,64 +1,44 @@
 ---
-description: eve trust boundaries, secrets in process.env, channel auth, boundary validation
-globs: ["agent/**/*.ts"]
+description: Authentication, secrets, PII, model tools, and validation boundaries
+globs: ["agent/**/*.ts", "app/**/*.{ts,tsx}", "server/**/*.ts", "lib/**/*.ts", "shared/**/*.ts"]
+paths:
+  - "agent/**/*.ts"
+  - "app/**/*.ts"
+  - "app/**/*.tsx"
+  - "server/**/*.ts"
+  - "lib/**/*.ts"
+  - "shared/**/*.ts"
 alwaysApply: true
 ---
 
 # Security
 
-Reference: `node_modules/eve/docs/concepts/security-model.md`.
+`REQUIREMENT.md` is the authority for PoC security and safety scope.
 
-## Trust boundary: app runtime vs sandbox
+## Secrets and trusted code
 
-Your agent runs across two contexts. Keep every secret on the trusted side.
+- Never hardcode or commit API keys, authentication secrets, or database tokens.
+- Access secrets only in trusted server or Eve runtime code through `process.env`.
+- Never expose secrets through `NEXT_PUBLIC_*` variables, client components, client bundles, logs, prompts, model-visible tool results, dummy data, or documentation examples.
+- Fail clearly when required server configuration is missing without printing the secret.
 
-| | App runtime (trusted) | Sandbox (isolated) |
-| --- | --- | --- |
-| `process.env` / secrets | Yes | **No** |
-| Your Node.js code (tools, channels, connections) | Yes | No |
-| Filesystem | App's own | Isolated `/workspace` |
+## Authentication and authorization
 
-Tool `execute` runs in the app runtime, reads secrets, calls the service, and returns a result. The model sees only the returned value — never the credential.
+- Fail closed: unauthenticated or unauthorized requests must not receive protected data.
+- Derive identity from a verified Better Auth session or verified Eve channel token.
+- Never trust a body-, parameter-, or query-supplied user ID for ownership.
+- Scope database reads and writes to the authenticated user in server-side code.
 
-## Secrets
+## Boundary validation
 
-NEVER hardcode secrets. Read them from `process.env` in the app runtime (this is a Node server, **not** a browser bundle — there is no `import.meta.env` / `VITE_` prefix here). Fail fast when a required var is missing.
+Validate untrusted tool inputs, HTTP inputs, dummy JSON, and allowed external responses with Zod. Do not replace validation with a TypeScript assertion. Parse once at the boundary and pass typed values inward.
 
-```typescript
-// CORRECT: read from process.env at use, fail fast
-const apiKey = process.env.STRIPE_KEY;
-if (!apiKey) throw new Error("STRIPE_KEY is required");
+## PoC data and model safety
 
-// WRONG: hardcoded secret
-const apiKey = "sk-abc123...";
-
-// WRONG: never pass a secret into the sandbox or compiled artifacts
-```
-
-Route privileged calls through tools or connections; scope connection tokens to least privilege.
-
-## Channel auth fails closed
-
-Routes reject unauthenticated traffic by default (`401`). Before exposing the agent:
-
-- Replace `placeholderAuth()` in `agent/channels/eve.ts` with a real `AuthFn` (`vercelOidc()`, `oidc()`, `httpBasic()`, …).
-- Verify channel signatures with a **constant-time** compare — never `===` on a signature.
-- Derive the caller from a verified signature/token, **never** from a body-supplied `principalId`.
-
-## Input validation at boundaries
-
-Validate untrusted input at system boundaries (channel payloads, tool inputs, external API responses) with Valibot. See [typescript/valibot-validation.md](../typescript/valibot-validation.md).
-
-```typescript
-import * as v from "valibot";
-
-const parsed = v.safeParse(PayloadSchema, rawBody);
-if (!parsed.success) throw new ValidationError(parsed.issues);
-
-// WRONG: trusting unvalidated external data
-const payload = rawBody as Payload;
-```
-
-## Untrusted text is data, not markup
-
-Model- or user-controlled strings rendered into a channel UI must be escaped for that surface. Treat skill/schedule markdown frontmatter strictly as data (code-capable frontmatter engines are disabled).
+- Use only fictional cases and fictional employees or experts.
+- Keep real customer and employee data out of the repository and demos.
+- Preserve the UI notice that users must not enter personal information.
+- Do not claim automatic PII detection, blocking, or masking.
+- Treat model- and user-controlled text as untrusted when rendering it.
+- Do not expose arbitrary shell, filesystem, web, Todo, schedule, subagent, or external-service capabilities to the model.
+- Do not let the model make final legal, tax, valuation, or contract decisions.

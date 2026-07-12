@@ -1,0 +1,73 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink: #10263b;
+  --color-ink-soft: #4c6172;
+  --color-navy: #123c56;
+  --color-navy-deep: #0b2e44;
+  --color-teal: #197771;
+  --color-teal-pale: #e7f2f0;
+  --color-paper: #fffefa;
+  --color-canvas: #f4f7f6;
+  --color-line: #d7e1df;
+  --color-control-line: #788e8b;
+  --color-amber: #c58817;
+  --color-amber-pale: #fff8e8;
+  --color-danger: #a02d2d;
+  --font-sans: "BIZ UDPGothic", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", Meiryo, system-ui, sans-serif;
+  --font-display: "Yu Mincho", "Hiragino Mincho ProN", "Hiragino Mincho Pro", serif;
+  --animate-skeleton-shimmer: skeleton-shimmer 1.5s ease-in-out infinite;
+  --animate-status-pulse: status-pulse 1.2s ease-in-out infinite;
+  --animate-tool-spin: tool-spin 800ms linear infinite;
+}
+
+@keyframes skeleton-shimmer {
+  to { background-position: -200% 0; }
+}
+
+@keyframes status-pulse {
+  50% { opacity: 0.35; transform: scale(0.72); }
+}
+
+@keyframes tool-spin {
+  to { transform: rotate(360deg); }
+}
+
+@layer base {
+  :root {
+    color-scheme: light;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+  }
+
+  html,
+  body { min-height: 100%; }
+
+  body {
+    min-height: 100vh;
+    background: radial-gradient(circle at 15% 10%, rgb(25 119 113 / 8%), transparent 32rem), #f4f7f6;
+  }
+
+  button,
+  input,
+  textarea { font: inherit; }
+
+  button,
+  a { -webkit-tap-highlight-color: transparent; }
+
+  :focus-visible {
+    outline: 3px solid #197771;
+    outline-offset: 3px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

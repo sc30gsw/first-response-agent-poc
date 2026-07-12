@@ -1,38 +1,50 @@
-# Personal Agent Template
+# First Response Agent PoC
 
-Durable personal AI assistant built with Eve and Nuxt.
+Proof-of-concept assistant for first response to complex real-estate cases,
+built with Eve and Next.js (App Router).
 
 ## PoC Context
 
-This repo is a fork of vercel-labs/personal-agent-template being repurposed as
-「複雑不動産案件 初動支援アシスタント」(MarksLife First Response Agent PoC).
+This repository implements a proof of concept for a complex real-estate case
+first-response assistant.
 **REQUIREMENT.md is the source of truth** for product scope.
 
 Key constraints (REQUIREMENT §8/§10):
-- Web channel ONLY — no Slack, iMessage, schedules, or multi-agent
+
+- Web channel ONLY — no external messaging, schedules, or multi-agent
 - Dummy JSON case/employee data — no real data connections
-- Template features (Slack, Sendblue, Linear, GitHub tools) are unused legacy, not yet removed
+- Out-of-scope integrations have been removed. Remaining Eve built-in tools
+  (bash, web_search, todo, etc.) are explicitly disabled via `disableTool()`
+  stubs in `agent/tools/`.
 
 ## Quick Reference
 
-| Command | Description |
-|---------|-------------|
-| `pnpm install` | Install dependencies |
-| `pnpm dev` | Start Nuxt + Eve dev server |
-| `pnpm build` | Production build |
-| `pnpm typecheck` | TypeScript check |
-| `pnpm db:generate` | Generate Drizzle migrations |
-| `pnpm db:migrate` | Apply migrations |
+| Command            | Description                                     |
+| ------------------ | ----------------------------------------------- |
+| `pnpm install`     | Install dependencies                            |
+| `pnpm dev`         | Start the Next.js dev server (`next dev`)       |
+| `pnpm test`        | Run deterministic Vitest tests                  |
+| `pnpm build`       | Production build (`eve build && next build`)    |
+| `pnpm typecheck`   | Generate Next route types, then run TypeScript  |
+| `pnpm db:generate` | Generate Drizzle migrations (`drizzle-kit`)     |
+| `pnpm db:migrate`  | Apply migrations (`drizzle-kit`)                |
 
-Required env: `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `INTERNAL_API_SECRET` (+ Turso vars on Vercel). See [docs/ENVIRONMENT.md](docs/ENVIRONMENT.md).
+Required env: `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `AI_GATEWAY_API_KEY` (+
+`TURSO_DATABASE_URL` / `TURSO_AUTH_TOKEN` on Vercel). Existing environments may use `TURSO_URL` as a
+compatibility alias when `TURSO_DATABASE_URL` is unset. See
+[docs/ENVIRONMENT.md](docs/ENVIRONMENT.md).
 
 ## Toolchain & Quality Gates
 
 - pnpm 9.15.0, Node >= 24. Run `pnpm install` first — node_modules may be absent.
-- **No lint, format, or test tooling exists.** The only check is `pnpm typecheck` (what CI runs).
+- Vitest is configured for deterministic tests under `tests/**/*.test.ts`.
+- No lint or format tooling exists. Do not invent lint/format commands.
+- Required quality gate: `pnpm test`, `pnpm typecheck`, and `pnpm build`.
+- For final review of React/Next.js changes, also run `npx react-doctor@latest --verbose --scope changed`.
 - Style: `.editorconfig` only (2-space indent, LF, final newline).
-- DB commands go through `nuxt db` (`pnpm db:generate` / `db:migrate`), not raw drizzle-kit.
-  Reset local DB: `rm -rf .data/db && pnpm db:migrate`
+- DB commands run `drizzle-kit` against `drizzle.config.ts` via the pnpm scripts
+  (`pnpm db:generate` / `db:migrate`). Do not run ad-hoc `drizzle-kit` with other
+  flags or configs. Reset local DB: `rm -rf .data && pnpm db:migrate`
 
 ## PR Conventions
 
@@ -42,49 +54,71 @@ Allowed scopes: `deps, app, agent, server, docs`. Subject must not start with up
 ## Structure
 
 ```
-personal-agent-template/
-├── agent/          # Eve agent (channels, tools, skills, connections)
-├── app/            # Nuxt UI (pages, components, composables)
-├── server/         # Nitro API, Drizzle schema, server utils
+first-response-agent-poc/
+├── agent/          # Eve agent (channels, tools, skills, instructions, lib/domain)
+├── app/            # Next.js App Router UI (pages, _components/, app/api/**/route.ts)
+├── server/         # Elysia API, application services, server utils, Drizzle
+├── lib/            # Better Auth/Eden client adapters and sample data
 ├── shared/         # Cross-layer types and helpers
-└── docs/           # Architecture, environment, customization
+├── tests/          # Deterministic Vitest tests
+└── docs/           # Architecture and environment docs
 ```
+
+Path aliases (`tsconfig.json`): `@/*` → repository root, `#lib/*` → `agent/lib/*`
+(matching `package.json` imports `#*` → `agent/*`).
 
 ## Documentation
 
-- [Architecture](docs/ARCHITECTURE.md) — System design, request flows, internal API
+- [Architecture](docs/ARCHITECTURE.md) — System design and request flows
 - [Environment](docs/ENVIRONMENT.md) — Environment variables
-- [Customization](docs/CUSTOMIZATION.md) — Rename agent, add tools, integrations
 - [README](README.md) — Quick start and feature overview
 
 ## Eve Framework
 
-This project uses Eve with a Nuxt frontend (`eve/nuxt` module). Before writing agent code, read the relevant guide in `node_modules/eve/dist/docs/public/`
+This project uses Eve with the Next.js integration (`eve/next` — `withEve` wraps
+the config in `next.config.ts`). Before writing agent code, read the relevant
+guide in `node_modules/eve/docs/`
 (run `pnpm install` first; verify the path exists — it ships inside the eve package).
 
-## Internal API Pattern
+## Agent Data Access
 
-The Eve agent calls Nuxt over HTTP:
+Agent tools call the deterministic domain layer in-process — there is no internal
+HTTP API (the legacy `/api/internal/*` + bearer-secret pattern has been removed):
 
 ```
-agent/lib/*-internal.ts  →  /api/internal/*  →  server/utils/*
+agent/tools/*.ts  →  agent/lib/domain/*  (deterministic search over dummy JSON)
 ```
 
-Authenticated with `Authorization: Bearer <INTERNAL_API_SECRET>`. See [`server/utils/internal-api.ts`](server/utils/internal-api.ts).
+The web channel ([`agent/channels/eve.ts`](agent/channels/eve.ts)) authenticates
+callers from the verified Better Auth session (root [`auth.ts`](auth.ts)); never
+trust a body-supplied identity. Search candidates and ranking are fixed in tool
+code — the LLM explains results but must not reorder or invent them.
 
-## Memory Flow
+## Application API
 
-1. **Session injection** — [`agent/instructions.ts`](agent/instructions.ts) on `session.started`
-2. **Agent save** — [`agent/tools/save_memory.ts`](agent/tools/save_memory.ts) with web approval UI
-3. **Profile UI** — import, view, edit, delete on Settings → Profile
+The browser API is the Elysia app mounted at `app/api/v1/[[...slugs]]/route.ts`.
+Keep its controllers limited to HTTP validation and plain response conversion:
 
-Categories: [`shared/types/memory.ts`](shared/types/memory.ts). One prose block per category; saves replace the full block.
+```
+Client Component -> TanStack Query -> lib/api-client.ts (Eden) -> /api/v1
+Route Handler -> server/api/ -> server/application/ -> server/utils/ + Drizzle
+Server Component -> server/application/ directly (no self-fetch)
+```
 
-## Customization Checklist
+Expected authentication, validation, authorization, conflict, limit, and I/O
+failures use typed `better-result` values inside application code. Unwrap them
+only at HTTP, Eve, or TanStack Query boundaries; never serialize `Result`,
+`TaggedError`, `Error`, or `Response` instances as API or tool data.
 
-- [`shared/agent.ts`](shared/agent.ts) — branding
-- [`agent/lib/base-instructions.ts`](agent/lib/base-instructions.ts) — persona
-- [`agent/channels/slack.ts`](agent/channels/slack.ts) — Slack Connect slug
-- [`agent/agent.ts`](agent/agent.ts) — AI model
+Authentication, same-origin checks, request-body policy, and ETag/If-Match
+parsing belong to `server/api/`. Application services receive an authenticated
+user ID, plain DTOs, and an explicit revision, and depend only on repository
+interfaces.
 
-See [docs/CUSTOMIZATION.md](docs/CUSTOMIZATION.md) for details.
+<!-- BEGIN:nextjs-agent-rules -->
+
+# Next.js: ALWAYS read docs before coding
+
+Before any Next.js work, find and read the relevant doc in `node_modules/next/dist/docs/`. Your training data is outdated — the docs are the source of truth.
+
+<!-- END:nextjs-agent-rules -->

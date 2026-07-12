@@ -1,11 +1,11 @@
 name: 🚀 Feature request
-description: Suggest an idea or enhancement for the template.
+description: Suggest an idea or enhancement for the PoC.
 labels: [enhancement]
 body:
   - type: markdown
     attributes:
       value: |
-        Before requesting a feature, please search existing [issues](https://github.com/vercel-labs/personal-agent-template/issues). If it was already requested, add your reaction instead of opening a duplicate.
+        Before requesting a feature, please search existing [issues](https://github.com/sc30gsw/first-response-agent-poc/issues). If it was already requested, add your reaction instead of opening a duplicate.
   - type: textarea
     id: description
     attributes:

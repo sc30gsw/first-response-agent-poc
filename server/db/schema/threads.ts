@@ -8,7 +8,9 @@ export const threads = sqliteTable("threads", {
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
   title: text("title").notNull(),
+  summary: text("summary").default("").notNull(),
   state: text("state"),
+  stateVersion: integer("state_version").default(0).notNull(),
   createdAt: integer("created_at", { mode: "timestamp_ms" })
     .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
     .notNull(),
@@ -26,3 +28,7 @@ export const threadsRelations = relations(threads, ({ one }) => ({
     references: [user.id],
   }),
 }));
+
+/** Single source of truth: thread row types derive from the Drizzle schema. */
+export type Thread = typeof threads.$inferSelect;
+export type ThreadInsert = typeof threads.$inferInsert;

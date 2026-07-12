@@ -1,164 +1,250 @@
-<img src="./public/banner.png" width="100%" alt="Personal Agent Template" />
+# 複雑不動産案件 初動支援エージェント（PoC）
 
-# Personal Agent Template
+> 複雑な不動産案件の初動対応を支援する社内AIアシスタント（PoC）
 
-[![CI](https://img.shields.io/github/actions/workflow/status/vercel-labs/personal-agent-template/ci.yml?branch=main&color=black)](https://github.com/vercel-labs/personal-agent-template/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/github/license/vercel-labs/personal-agent-template?color=black)](https://github.com/vercel-labs/personal-agent-template/blob/main/LICENSE)
-[![Vercel](https://img.shields.io/badge/Vercel-black?logo=vercel&logoColor=white)](https://vercel.com)
+## このPoCについて
 
-**Template.** Fork it, customize it, and deploy your own personal agent.
+本リポジトリは、不動産業界で複雑案件対応にあたる際の課題感を仮定して作成したPoC（Proof of Concept）です。
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel-labs%2Fpersonal-agent-template&env=BETTER_AUTH_SECRET,BETTER_AUTH_URL,INTERNAL_API_SECRET&envDescription=BETTER_AUTH_SECRET%3A%20run%20openssl%20rand%20-base64%2032%20%7C%20BETTER_AUTH_URL%3A%20your%20production%20URL%20%7C%20INTERNAL_API_SECRET%3A%20shared%20secret%20for%20web%20%2B%20eve&envLink=https%3A%2F%2Fgithub.com%2Fvercel-labs%2Fpersonal-agent-template%2Fblob%2Fmain%2Fdocs%2FENVIRONMENT.md&stores=%5B%7B%22type%22%3A%22integration%22%2C%22integrationSlug%22%3A%22tursocloud%22%2C%22productSlug%22%3A%22database%22%2C%22protocol%22%3A%22storage%22%7D%5D&project-name=personal-agent&repository-name=personal-agent)
+実際の社内業務・データ・運用を再現したものではなく、
 
-Open source personal agent template. Web chat, Slack, iMessage, GitHub, Linear, and long-term memory — one codebase, durable sessions, user-approved memory saves.
+**「このようなAIアシスタントがあれば、事業拡大を支援できるのではないか」**
 
-## Features
+という仮定課題の解決を図ることを目的としています。
 
-### Web Chat — Threads That Persist
+### 背景
 
-Chat with your agent in the browser. Threads resume across sessions, tool calls render in real time, and `save_memory` proposals require explicit approval before anything is stored.
+複雑案件を専門的に扱う不動産会社では、
 
-### Slack — Same Agent, Different Surface
+- 空き家
+- 相続
+- 事故物件
+- 再建築不可物件
+- 共有持分
 
-DMs and @mentions on Slack. Link your Slack account to your web profile so memory and context follow you across channels.
+など、一般的な不動産会社では扱いにくい案件を数多く取り扱っています。
 
-### iMessage — Text Your Agent
+これらは法律・税務・不動産・相続・人間関係・感情など様々な要素が絡み合うため、案件ごとに必要となる知識が大きく異なります。
 
-Reach V over iMessage via [Sendblue](https://chat-sdk.dev/adapters/vendor-official/sendblue). Add your phone number in **Profile**, then message the Sendblue line — same memory and context as web and Slack.
+さらに、今後事業・組織が拡大すると、
 
-### GitHub — Repos, PRs, and CI
+- 初回対応品質
+- ナレッジ共有
+- 属人化
+- 教育コスト
 
-Connect GitHub via Vercel Connect. Ask about repositories, pull requests, issues, and workflows — the agent uses [@github-tools/sdk](https://github-tools.com/frameworks/eve) tools with durable approval on writes.
+が課題になる可能性があると考えました。
 
-### Linear — Issues On Demand
+### 解決したい課題
 
-Connect Linear via Vercel Connect MCP. Ask about issues, projects, and cycles — the agent queries Linear tools, never guesses from memory.
+| #   | 課題                                                                   |
+| --- | ---------------------------------------------------------------------- |
+| ①   | 相談内容が複雑で、**何から確認すればよいのか分からない**               |
+| ②   | 過去に似た案件が存在していても、**探すことが難しい**                   |
+| ③   | 経験者が誰なのか分からず、**質問相手を探すだけで時間がかかる**         |
+| ④   | AIだけでは判断できない案件も多く、**最終的には人へ相談する必要がある** |
 
-### Long-Term Memory — Import and Grow
+### PoCのコンセプト
 
-Raycast-style import from ChatGPT or other assistants. Five fixed categories, one prose block each. Edit, delete, or let the agent propose updates via `save_memory`.
+AIで人を置き換えることではありません。
 
-### Daily Summary — On Demand
+AIが
 
-Morning briefing skill: active focus from memory, assigned Linear issues, and a suggested next action. Trigger from the home quick action or ask in chat.
+- 情報を整理し
+- 類似事例を提示し
+- 社内の知見へ素早くアクセスする
 
-## [Architecture](./docs/ARCHITECTURE.md)
+ことで、**人がより良い判断をするための初動を支援する**ことを目的としています。
+
+## デモフロー
+
+1. 本番URL（`https://<production-url>` ← デプロイ確定後にここを実URLへ差し替える）にアクセスする
+2. 「デモを開始」を押す（アカウント登録不要。匿名セッションは24時間で失効）
+3. 新規相談ホームで、サンプル案件カードをクリックするか、案件名を1行入力して「この内容で相談を開始」を押す
+
+   サンプル案件カードをクリックした場合は、案件名欄にサンプルのラベルが自動入力され、相談内容は次の画面へ引き継がれます。案件名を自分で入力した場合は、相談内容は次の画面で入力します。
+
+4. `/chat/{id}` の入力欄に相談内容を入力（またはサンプル選択時は自動反映された内容を確認）し、送信する。次の3パターンのいずれかで試すと分かりやすい
+
+   **再建築不可・接道**
+
+   ```
+   接道条件に懸念がある古い家屋を所有しており、活用や売却を検討するための確認事項が分からない
+   ```
+
+   **相続・共有持分**
+
+   ```
+   親から相続した空き家を兄弟で共有しているが、共有者の一人と連絡が取れず、今後どう進めればいいか分からない
+   ```
+
+   **事故・告知事項**（新規相談ホームの「事故・告知事項」サンプルカードから試すのが手軽）
+
+5. エージェントが案件要約・初動確認事項・類似案件・有識者候補を構造化カードで提示する
+6. 有識者候補カードの「この人への相談文を作成」を押すと下書きが生成される。「全文をコピー」でコピーできる
+7. 確認後、ユーザーメニューの「デモデータを削除」でデモデータを削除する
+
+> **エラーが出た場合**: 本デモは共有インスタンスのため、全ユーザー合計で1日あたりの利用回数に上限があります。上限に達した旨のエラーが表示された場合は、日を改めてお試しください。
+
+## 主な機能
+
+相談内容を自然言語で入力すると、以下を構造化カードとして生成します。
+
+| 機能         | 内容                                                               |
+| ------------ | ------------------------------------------------------------------ |
+| 案件要約     | 自然言語の相談内容から案件を構造化                                 |
+| 初動確認事項 | 最初に確認すべき内容と不足情報を整理                               |
+| 類似案件検索 | ダミーデータから類似案件を提示（順位はツールコードで決定的に確定） |
+| 有識者推薦   | 案件内容から社内の相談先候補を提示                                 |
+| 相談文生成   | 有識者への相談依頼文の下書きを生成                                 |
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│              Web chat · Slack DMs / mentions · iMessage           │
-└───────────────────────────────┬─────────────────────────────────┘
-                                ▼
-┌─────────────────────────────────────────────────────────────────┐
-│              Eve agent (channels, tools, skills)                 │
-└───────────────────────────────┬─────────────────────────────────┘
-                                │ /api/internal/* (Bearer auth)
-                                ▼
-┌─────────────────────────────────────────────────────────────────┐
-│         Nuxt (UI + Nitro API + Better Auth + SQLite)           │
-└───────────────────────────────┬─────────────────────────────────┘
-                                ▼
-                      Vercel Connect (Linear, Slack)
+相談内容 → 案件要約 → 不足情報 → 類似事例 → 有識者候補 → 相談文生成
 ```
 
-On Vercel, two services deploy from [`vercel.json`](vercel.json): `web` (Nuxt) and `eve` (agent runtime).
+## 安全上の制約
 
-## Quick Start
+### AI断定の回避
 
-### Deploy to Vercel
+AIは法的判断・税務判断・査定価格・契約可否を断定しません。最終判断は必ず人が行う前提です。生成される初動レポートは「人へ相談するための準備」に徹します。
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel-labs%2Fpersonal-agent-template&env=BETTER_AUTH_SECRET,BETTER_AUTH_URL,INTERNAL_API_SECRET&envDescription=BETTER_AUTH_SECRET%3A%20run%20openssl%20rand%20-base64%2032%20%7C%20BETTER_AUTH_URL%3A%20your%20production%20URL%20%7C%20INTERNAL_API_SECRET%3A%20shared%20secret%20for%20web%20%2B%20eve&envLink=https%3A%2F%2Fgithub.com%2Fvercel-labs%2Fpersonal-agent-template%2Fblob%2Fmain%2Fdocs%2FENVIRONMENT.md&stores=%5B%7B%22type%22%3A%22integration%22%2C%22integrationSlug%22%3A%22tursocloud%22%2C%22productSlug%22%3A%22database%22%2C%22protocol%22%3A%22storage%22%7D%5D&project-name=personal-agent&repository-name=personal-agent)
+### 決定的検索
 
-### Self-hosting
+類似案件・有識者・ガイドの検索順位はツールコード（`agent/lib/domain/`）で決定的に確定します。LLMは確定済みの結果を説明するだけで、順位や採点を変更しません。同一入力に対して常に同一の検索結果になります。
 
-**Requirements:** Node.js 24+, pnpm
+### 匿名認証
+
+Better Auth の匿名プラグインによるデモ用認証です。セッションは24時間で失効します。ただし、セッションの失効やブラウザを閉じることだけでは、保存済みデータを自動削除しません。
+
+ユーザーメニューの「デモデータを削除」を実行すると、匿名ユーザー・認証セッション・Turso上のスレッドを削除し、関連するEveセッションへのアプリケーション側アクセスを失効させます。この操作を行わない場合、データがデータベースに残る可能性があります。恒久的なアカウント管理は対象外です。
+
+Eveランタイムが保持する実行セッション本体はアプリケーションDBとは別管理です。本アプリは削除要求を記録して再アクセスを拒否しますが、基盤上の物理削除完了までは保証しません。
+
+### 入力データの取り扱い
+
+相談入力と生成処理に必要な会話データは、回答生成のためLLM APIへ送信されます。また、チャット履歴としてアプリケーションDBへ保存され、生成処理に伴う実行データがEve側の保持ポリシーに従って残る可能性があります。個人情報の自動検出、遮断、マスキングは行わないため、実在する顧客や社員の情報を入力しないでください。
+
+### その他の限界
+
+- データはすべて架空のダミー（日本語）。実在の顧客・社員データは一切使用していません
+- RAG・案件管理システム・メッセージング・メールなどの外部連携は未実装
+- 権限管理・ワークフローは対象外
+
+## 技術構成
+
+- Next.js（App Router）+ React
+- TypeScript
+- Elysia + OpenAPI（`/api/v1`）
+- TanStack Query + Eden（ブラウザのserver state同期）
+- better-result（想定内エラーの型付き処理）
+- Eve（エージェントランタイム。`next.config.ts` の `withEve` で統合）
+- LLM API（Eve 経由。モデル設定は `agent/agent.ts` で管理）
+- Better Auth（匿名認証プラグイン）
+- Drizzle ORM + libsql（ローカル SQLite / Turso）
+- Zod
+- Vitest
+
+## セットアップ
+
+**必要環境:** Node.js 24+ / pnpm
 
 ```bash
-git clone https://github.com/vercel-labs/personal-agent-template.git
-cd personal-agent-template
-
 pnpm install
-cp .env.example .env
-pnpm db:migrate
-pnpm dev
+cp .env.example .env   # 変数名のみ記載。値は各自で用意してください
+pnpm db:migrate        # ローカルは .data/db.sqlite を自動作成して適用します
+pnpm dev               # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000), create an account, and start chatting.
+**環境変数（変数名のみ。値はコミットしないでください）:**
 
-**Required environment variables:**
+| 変数                 | 用途                                                                                                                             |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `BETTER_AUTH_SECRET` | Better Auth の署名シークレット                                                                                                   |
+| `BETTER_AUTH_URL`    | 本番の公開URL（ローカルは未設定で可）                                                                                            |
+| `TURSO_DATABASE_URL` | リモート libSQL の推奨URL名（Vercelではこの変数または互換aliasが必須）                                                           |
+| `TURSO_URL`          | 既存環境向けの互換alias（`TURSO_DATABASE_URL` が未設定の場合のみ使用）                                                           |
+| `TURSO_AUTH_TOKEN`   | `libsql://` 接続時に必須                                                                                                         |
+| `AI_GATEWAY_API_KEY` | Vercel AI Gateway の API キー。ローカル/CI で必須（Vercel 上は OIDC で省略可能だが本プロジェクトは Production/Preview にも設定） |
+
+詳細は [docs/ENVIRONMENT.md](./docs/ENVIRONMENT.md) を参照してください。
+
+## API
+
+スレッドAPIはElysiaで `/api/v1` 以下へ公開します。ブラウザはEdenの型付きadapterをTanStack Queryから利用し、Server Componentは同じApplication Serviceを直接呼び出します。
+更新はETag/If-Matchで競合を検出し、API responseはOpenAPIを含め `Cache-Control: no-store` とします。
+
+- 対話型OpenAPI: [`/api/v1/openapi`](http://localhost:3000/api/v1/openapi)
+- OpenAPI JSON: [`/api/v1/openapi/json`](http://localhost:3000/api/v1/openapi/json)
+
+## 品質ゲート
 
 ```bash
-BETTER_AUTH_SECRET=...       # openssl rand -base64 32
-BETTER_AUTH_URL=http://localhost:3000
-INTERNAL_API_SECRET=...      # openssl rand -base64 32 — same on web + eve
+pnpm test        # Vitest（決定的テスト）
+pnpm typecheck   # Next.js route型生成 + tsc --noEmit
+pnpm build       # eve build && next build
 ```
 
-See [ENVIRONMENT.md](./docs/ENVIRONMENT.md) for the full reference.
-
-Fresh local database:
+React / Next.js変更を含む最終レビューでは、上記に加えて次を実行します。
 
 ```bash
-rm -rf .data/db && pnpm db:migrate
+npx react-doctor@latest --verbose --scope changed
 ```
 
-## Customization
+## デプロイ概要（Vercel）
 
-Personal Agent Template ships with **V** as the example persona. See the [Customization Guide](./docs/CUSTOMIZATION.md) for how to:
+[`vercel.json`](./vercel.json) のサービス設定により 2 サービスがデプロイされます。
 
-- Rename your agent (name, slug, persona)
-- Change the AI model
-- Add tools and skills
-- Configure Slack, iMessage, and Linear integrations
-- Theme the UI
-- Deploy your fork
+| サービス | 内容                                               |
+| -------- | -------------------------------------------------- |
+| `web`    | Next.js（UI + Elysia `/api/v1`）                   |
+| `eve`    | Eve エージェントランタイム（`/_eve_internal/eve`） |
 
-## Memory
+1. Vercel にプロジェクトを作成する
+2. 環境変数を設定する: `BETTER_AUTH_SECRET` / `BETTER_AUTH_URL`（本番URL）/ `TURSO_DATABASE_URL`（既存環境では `TURSO_URL` も可）/ `TURSO_AUTH_TOKEN` / `AI_GATEWAY_API_KEY`（Production・Preview。詳細は下記「AI Gateway のコスト管理」）
+3. リモートDBへマイグレーションを適用する（`pnpm db:migrate`）
 
-Long-term memory is injected into every Eve session for authenticated users (web, linked Slack, and iMessage).
+Vercel（サーバーレス）ではローカルファイル SQLite を作成できないため、Turso などのホスト型 libSQL データベースが必須です。
 
-1. Open **Profile → Import Memory**
-2. Copy the export prompt into ChatGPT, Claude, etc.
-3. Paste the response → **Add to Memory**
-4. Start a **new chat** so the agent picks up the latest context
+## AI Gateway のコスト管理
 
-V can also propose facts via **`save_memory`** — approve or skip in chat. Edit or delete entries on **Profile → Memory**.
+モデル呼び出しは Vercel AI Gateway 経由です。具体的なLLM設定は [`agent/agent.ts`](./agent/agent.ts) に集約し、一般向け文書には固定のモデル名を持たせません。コスト暴走はプラットフォーム側とアプリ側の二重で防衛します。
 
-## How It Works
+| 層                     | 防衛                                                                                          | 設定場所                                                   |
+| ---------------------- | --------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| Gateway 予算           | 月次spend limitを設定し、超過時はリクエストを拒否する。金額はデプロイ環境の運用設定で管理する | Vercel ダッシュボード → AI Gateway → Budgets               |
+| API キー               | 名前付きキーで利用量を追跡。漏洩・異常時はダッシュボードから即時失効                          | Vercel ダッシュボード → AI Gateway → API Keys              |
+| アプリ側レートリミット | Eve セッションターンの全体日次上限 `globalPerDay: 200`                                        | [`agent/lib/eve-security.ts`](./agent/lib/eve-security.ts) |
 
-> For the full technical deep-dive, see [Architecture](./docs/ARCHITECTURE.md).
+運用ルール:
 
-1. **Auth**: Users sign in via Better Auth (email/password)
-2. **Session start**: Eve fetches profile + memory and injects into agent instructions
-3. **Chat**: Web UI streams through Eve; Slack events hit the slack channel; iMessage via Sendblue
-4. **Tools**: Agent calls weather, save_memory, Linear MCP as needed
-5. **Internal API**: Agent reads/writes memory, Slack links, and phone links via authenticated Nitro routes
+- ローカル開発 / CI では `AI_GATEWAY_API_KEY` が**必須**（モデルが Gateway 経由のため、未設定だと認証エラーになる）
+- Vercel 上は OIDC で技術的には省略可能だが、利用量を名前付きキーに紐づけて追跡するため **Production / Preview にも明示設定**する
+- キーの値をコミット・チャット・ログに貼らない。漏洩を疑ったら即失効して再発行する
 
-## Development
+## ディレクトリ構成
 
-```bash
-pnpm dev          # Nuxt + Eve (eve/nuxt module — see Eve docs)
-pnpm typecheck    # TypeScript check
-pnpm build        # Production build
-pnpm db:generate  # Generate Drizzle migrations
-pnpm db:migrate   # Apply migrations
+```
+├── app/        # Next.js App Router（ページ + _components/ + Elysia route mount）
+├── agent/      # Eve エージェント（channels/ tools/ skills/ instructions.ts, lib/domain=決定的検索）
+├── server/     # Elysia API / Application Service / Drizzle・サーバーユーティリティ
+├── lib/        # Better Auth・Edenクライアントadapter / ダミーデータ
+├── shared/     # 層間で共有する型・定義
+├── tests/      # Vitest（決定的テスト）
+└── docs/       # ドキュメント
 ```
 
-See [AGENTS.md](./AGENTS.md) for notes aimed at AI coding assistants.
+アーキテクチャの詳細は [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) を参照してください。
 
-## Built With
+## 今後の展望
 
-- [Eve](https://eve.dev) — Durable agent framework
-- [Nuxt](https://nuxt.com) — Full-stack Vue framework
-- [Nuxt UI](https://ui.nuxt.com) — UI component library
-- [NuxtHub](https://hub.nuxt.com) — SQLite database
-- [Better Auth](https://www.better-auth.com) — Authentication
-- [Drizzle ORM](https://orm.drizzle.team) — Type-safe database queries
-- [Vercel Connect](https://vercel.com/docs/connect) — Linear and Slack integrations
+将来的には社内ナレッジ、過去案件、案件管理システム、メッセージング（Slack連携）などと連携し、AIだけではなく **「AI + 人」** によるナレッジ共有基盤へ発展させることを想定しています。
 
-## Contributing
+## 注意事項
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for how to get involved.
+本PoCは実在する顧客データ・社員データを一切使用していません。すべてダミーデータで構成しています。
 
-## License
+また、AIは法的判断・契約判断・査定価格などを決定するものではなく、最終判断は必ず人が行う前提としています。
+
+## ライセンス
 
 [MIT](./LICENSE)

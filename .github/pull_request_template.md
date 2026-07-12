@@ -5,9 +5,9 @@
 - breaking, feat, fix, build, ci, docs, enhancement, chore, perf, style, test, refactor, revert
 
 ### Scopes
-- app (Nuxt UI)
+- app (Next.js App Router UI)
 - agent (Eve agent)
-- server (Nitro API)
+- server (Route Handlers, auth, database)
 - docs (documentation)
 - deps (dependencies)
 -->
@@ -24,4 +24,6 @@
 
 - [ ] I have linked an issue or discussion.
 - [ ] I have updated the documentation accordingly.
+- [ ] `pnpm test` passes locally.
 - [ ] `pnpm typecheck` passes locally.
+- [ ] `pnpm build` passes locally.

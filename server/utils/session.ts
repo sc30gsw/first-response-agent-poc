@@ -1,19 +1,10 @@
-import type { H3Event } from "h3";
-import { fromNodeHeaders } from "better-auth/node";
-import { auth } from "~~/auth";
-import { getNodeRequest } from "~~/server/utils/h3-node";
+import { auth } from "@/auth";
+import type { User } from "../db/schema/auth";
 
-export async function requireSessionUserId(event: H3Event): Promise<string> {
+export async function getSessionUserId(headers: Headers): Promise<User["id"] | null> {
   const session = await auth.api.getSession({
-    headers: fromNodeHeaders(getNodeRequest(event).headers),
+    headers,
   });
 
-  if (!session?.user?.id) {
-    throw createError({
-      statusCode: 401,
-      statusMessage: "Unauthorized",
-    });
-  }
-
-  return session.user.id;
+  return session?.user?.id ?? null;
 }

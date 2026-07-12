@@ -1,0 +1,1 @@
+../../../.agents/rules/common/product-scope.md

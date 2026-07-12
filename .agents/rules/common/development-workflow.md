@@ -1,62 +1,47 @@
 ---
-description: eve CLI + pnpm command conventions, tsgo typecheck, fallow, PR pre-check flow
+description: pnpm, Next.js, database, and pre-PR workflow for this repository
 globs: []
-alwaysApply: false
+alwaysApply: true
 ---
 
 # Development Workflow
 
+Use pnpm 9.15.0 and Node.js 24 or newer. Install dependencies before relying on package-local documentation or generated types.
+
 ## Commands
 
-This is an **eve** agent app. The package manager is **pnpm**. Development goes through the `eve` CLI (wired into the `package.json` scripts) plus `tsgo` for type-checking and `fallow` for code health.
+| Command | Purpose |
+| --- | --- |
+| `pnpm dev` | Start the Next.js dev server (`next dev`) |
+| `pnpm test` | Run deterministic Vitest tests |
+| `pnpm typecheck` | Run `next typegen`, then `tsc --noEmit -p tsconfig.json` |
+| `pnpm build` | Run `eve build` then `next build` |
+| `pnpm start` | Serve the production Next.js build |
+| `pnpm db:generate` | Generate Drizzle migrations via `drizzle-kit generate` |
+| `pnpm db:migrate` | Apply Drizzle migrations via `drizzle-kit migrate` |
 
-| Command            | Runs                          | Purpose                                                    |
-| ------------------ | ----------------------------- | ---------------------------------------------------------- |
-| `pnpm dev`         | `eve dev`                     | Start the local dev server + terminal UI                   |
-| `pnpm build`       | `eve build`                   | Compile `.eve/` artifacts and build the host output        |
-| `pnpm start`       | `eve start`                   | Serve the built `.output/` app                             |
-| `pnpm eval`        | `eve eval`                    | Run evals (see [testing.md](./testing.md))                 |
-| `pnpm check`       | `tsgo && oxlint && oxfmt --check` | Type-check + lint + format check (CI / pre-PR gate)    |
-| `pnpm fix`         | `oxlint --fix && oxfmt`       | Auto-fix lint + write formatting                           |
-| `pnpm typecheck`   | `tsgo`                        | Type-check (uses `@typescript/native-preview`, NOT `tsc`)  |
-| `pnpm lint`        | `oxlint`                      | Lint only                                                  |
-| `pnpm format`      | `oxfmt`                       | Format (write)                                             |
-| `pnpm fallow`      | `fallow`                      | Unused code, duplication, cycles, complexity               |
-| `pnpm fallow:audit`| `fallow audit`                | Changed-code gate (run before every commit / push)         |
-| `pnpm fallow:dead-code` | `fallow dead-code`       | Unused files, exports, dependencies                        |
-| `eve info`         | `pnpm exec eve info`          | Print the discovered surface + diagnostics                 |
+Do not substitute standalone Eve commands for the package scripts. Do not document or run nonexistent `pnpm check`, `pnpm lint`, `pnpm format`, `pnpm eval`, `tsgo`, `oxlint`, `oxfmt`, or `fallow` workflows.
 
-Formatting (oxfmt) uses double quotes and semicolons; `oxlint` enforces `import/no-default-export` everywhere except eve slots (`agent/agent.ts`, `agent/channels/**`, `agent/tools/**`, `evals/**`, `*.config.ts`).
+Use pnpm rather than npm or Yarn. Use `pnpm dlx` for one-off package execution unless an existing package script deliberately specifies another command.
 
-## Forbidden
+## Required quality gate
 
-```
-// WRONG: this project has no Vite+ (vp), no Vitest, no React tooling
-vp dev
-vp check
-vp test
-
-// WRONG: tsc — type-checking uses tsgo
-npx tsc --noEmit
-
-// WRONG: npm / yarn — the package manager is pnpm
-npm install
-yarn build
-```
-
-Use `pnpm dlx` instead of `npx`.
-
-## PR pre-check
-
-Before opening a PR, run:
+Before handing off implementation work or opening a PR, run:
 
 ```bash
-pnpm check         # tsgo + oxlint + oxfmt --check (no errors)
-pnpm eval          # all evals pass their gates (eve eval --strict in CI)
-fallow audit       # changed-code gate is `pass` (required before commit/push)
-pnpm build         # eve build succeeds
+pnpm test
+pnpm typecheck
+pnpm build
 ```
 
-The `fallow audit` gate is also enforced automatically before `git commit` / `git push` by `.claude/hooks/fallow-gate.sh`.
+Report any command that could not run and the reason. Do not claim success from a narrower check.
 
-`fallow audit` defaults to `gate=new-only`: only findings introduced by the current changeset block the verdict. See the Fallow task map in [AGENTS.md](/AGENTS.md) for trace/explain subcommands.
+For final review of React or Next.js changes, also run the latest React Doctor against the changed scope. This supplements rather than replaces the required commands:
+
+```bash
+npx react-doctor@latest --verbose --scope changed
+```
+
+## Database workflow
+
+Use `pnpm db:generate` and `pnpm db:migrate`; both run `drizzle-kit` against `drizzle.config.ts`. Do not bypass the package scripts with ad-hoc `drizzle-kit` invocations using other flags or configs. Preserve generated migrations and metadata. A local database reset (`rm -rf .data && pnpm db:migrate`) is destructive and must only be performed when the task requires it.
