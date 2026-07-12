@@ -23,9 +23,10 @@ export const threadStateSchema = ThreadStateSchema;
 
 export const patchThreadBodySchema = z.object({
   title: ThreadTitleSchema.optional(),
+  summary: ThreadSummaryTextSchema.optional(),
   state: threadStateSchema.optional(),
 }).refine(
-  (value) => value.title !== undefined || value.state !== undefined,
+  (value) => value.title !== undefined || value.summary !== undefined || value.state !== undefined,
   "At least one patch field is required",
 );
 export type PatchThreadInput = z.input<typeof patchThreadBodySchema>;

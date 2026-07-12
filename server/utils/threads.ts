@@ -162,7 +162,7 @@ export async function createThreadForUser(
 export async function updateThreadForUser(
   userId: Thread["userId"],
   id: Thread["id"],
-  patch: Partial<Pick<Thread, "title">> & { readonly state?: ThreadState },
+  patch: Partial<Pick<Thread, "title" | "summary">> & { readonly state?: ThreadState },
   expectedRevision: Thread["stateVersion"],
   database: AppDatabase = db,
 ): Promise<Result<ThreadRecord | undefined, ThreadStateParseError | StaleThreadStateError>> {
@@ -175,6 +175,7 @@ export async function updateThreadForUser(
       stateVersion: expectedRevision + 1,
       updatedAt: new Date(),
       ...(patch.title !== undefined ? { title: truncateThreadTitle(patch.title) } : {}),
+      ...(patch.summary !== undefined ? { summary: normalizeThreadSummary(patch.summary) } : {}),
       ...(patch.state !== undefined
         ? { state: serializeThreadState(mergeThreadState(existing.value.state, patch.state)) }
         : {}),

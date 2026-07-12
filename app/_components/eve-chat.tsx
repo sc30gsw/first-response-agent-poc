@@ -21,6 +21,7 @@ import {
   type EveInputSelection,
 } from "@/shared/eve-events";
 import {
+  normalizeThreadSummary,
   threadRecordToSummary,
   type ThreadRecord,
   type ThreadState,
@@ -59,6 +60,8 @@ export function EveChat({ thread, threads }: EveChatProps) {
   const savePausedRef = useRef(false);
   const manualSaveRetryRef = useRef(false);
   const pendingComposerMessageRef = useRef<string | null>(null);
+  const summaryInitializedRef = useRef(thread.summary !== "");
+  const pendingSummaryRef = useRef<string | null>(null);
   const [announcement, setAnnouncement] = useState("");
   const [canRetrySave, setCanRetrySave] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -67,10 +70,11 @@ export function EveChat({ thread, threads }: EveChatProps) {
     mutationKey: ["threads", thread.id, "state"],
     mutationFn: async (state: ThreadState) => {
       const expectedRevision = revisionRef.current;
+      const summary = pendingSummaryRef.current;
       const updatedThread = await threadApiClient.update({
         expectedRevision,
         id: thread.id,
-        input: { state },
+        input: summary === null ? { state } : { state, summary },
       });
       if (updatedThread.revision !== expectedRevision + 1) {
         throw new ThreadApiClientError({
@@ -80,7 +84,7 @@ export function EveChat({ thread, threads }: EveChatProps) {
           status: 200,
         });
       }
-      return updatedThread;
+      return { summaryApplied: summary, updatedThread };
     },
     onError: (error) => {
       if (error instanceof ThreadApiClientError && error.code === "conflict") {
@@ -102,7 +106,10 @@ export function EveChat({ thread, threads }: EveChatProps) {
       }
       setSaveError("会話履歴を保存できませんでした。ページを閉じずに再度お試しください。");
     },
-    onSuccess: (updatedThread) => {
+    onSuccess: ({ summaryApplied, updatedThread }) => {
+      if (summaryApplied !== null && pendingSummaryRef.current === summaryApplied) {
+        pendingSummaryRef.current = null;
+      }
       const summary = threadRecordToSummary(updatedThread);
       revisionRef.current = updatedThread.revision;
       queryClient.setQueryData(threadQueryKeys.detail(thread.id), updatedThread);
@@ -275,12 +282,19 @@ export function EveChat({ thread, threads }: EveChatProps) {
 
     setAnnouncement("");
     pendingComposerMessageRef.current = message;
+    const isFirstMessage = !summaryInitializedRef.current;
+    if (isFirstMessage) pendingSummaryRef.current = normalizeThreadSummary(message);
     if (inputRef.current) inputRef.current.value = "";
     const sent = await sendAgentInput(
       { message },
       "メッセージを送信できませんでした。再度お試しください。",
     );
-    if (!sent && inputRef.current) {
+    if (sent) {
+      if (isFirstMessage) summaryInitializedRef.current = true;
+      return;
+    }
+    if (isFirstMessage) pendingSummaryRef.current = null;
+    if (inputRef.current) {
       inputRef.current.value = message;
       pendingComposerMessageRef.current = null;
     }
