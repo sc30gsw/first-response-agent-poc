@@ -245,7 +245,7 @@ export function EveChat({ thread, threads }: EveChatProps) {
       "メッセージを送信できませんでした。再度お試しください。",
     );
     if (sent) {
-      form.reset({ message: "" });
+      form.reset();
       if (isFirstMessage) persistence.commitFirstMessageSummary();
       return;
     }
