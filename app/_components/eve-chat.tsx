@@ -239,7 +239,10 @@ export function EveChat({ thread, threads }: EveChatProps) {
     // These updates are batched at the end of the submit event, before the
     // asynchronous send operation can update the agent status.
     setAnnouncement("相談内容を受け付け、分析を開始しています。");
-    form.reset();
+    // reset() alone restores defaultValues, which still hold the handed-off
+    // draft — pass empty values so the composer clears and "" becomes the
+    // default for later resets.
+    form.reset({ message: "" });
     setIsSendStarting(true);
     const sent = await sendAgentInput(
       { message },
