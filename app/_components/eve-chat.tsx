@@ -239,13 +239,13 @@ export function EveChat({ thread, threads }: EveChatProps) {
     // These updates are batched at the end of the submit event, before the
     // asynchronous send operation can update the agent status.
     setAnnouncement("相談内容を受け付け、分析を開始しています。");
-    form.reset({ message: "" });
     setIsSendStarting(true);
     const sent = await sendAgentInput(
       { message },
       "メッセージを送信できませんでした。再度お試しください。",
     );
     if (sent) {
+      form.reset({ message: "" });
       if (isFirstMessage) persistence.commitFirstMessageSummary();
       return;
     }
