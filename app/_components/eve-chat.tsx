@@ -5,7 +5,6 @@ import { Result } from "better-result";
 import { useEveAgent, type EveMessage } from "eve/react";
 import { useRef, useState } from "react";
 import type { RefObject, SubmitEvent } from "react";
-import { flushSync } from "react-dom";
 import { cn } from "cnfast";
 import { MAX_CHAT_MESSAGE_CHARS } from "@/shared/chat-limits";
 import {
@@ -199,13 +198,11 @@ export function EveChat({ thread, threads }: EveChatProps) {
     expectsAnalysisActionRef.current = true;
     receivedAnalysisActionRef.current = false;
     const isFirstMessage = persistence.beginFirstMessageSummaryIfNeeded(message, normalizeThreadSummary);
-    // Eve updates its status after send() begins. Flush this local state first
-    // so the user gets feedback in the same frame as the submit interaction.
-    flushSync(() => {
-      setAnnouncement("相談内容を受け付け、分析を開始しています。");
-      setDraft("");
-      setIsSendStarting(true);
-    });
+    // These updates are batched at the end of the submit event, before the
+    // asynchronous send operation can update the agent status.
+    setAnnouncement("相談内容を受け付け、分析を開始しています。");
+    setDraft("");
+    setIsSendStarting(true);
     const sent = await sendAgentInput(
       { message },
       "メッセージを送信できませんでした。再度お試しください。",
