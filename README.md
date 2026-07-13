@@ -236,12 +236,12 @@ npx react-doctor@latest --verbose --scope changed
 
 ## デプロイ概要（Vercel）
 
-[`vercel.json`](./vercel.json) のサービス設定により 2 サービスがデプロイされます。
+[`next.config.ts`](./next.config.ts) の `withEve` により、Next.js アプリと Eve エージェントランタイムを **1つの Vercel プロジェクト・1回のデプロイ** として配信します（`vercel.json` は使用していません）。`pnpm build`（`eve build && next build`）で Eve が Vercel Build Output を出力し、Eve のルートは同一オリジンの内部名前空間（既定 `/_eve_internal/eve`）にマウントされます。
 
-| サービス | 内容                                               |
-| -------- | -------------------------------------------------- |
-| `web`    | Next.js（UI + Elysia `/api/v1`）                   |
-| `eve`    | Eve エージェントランタイム（`/_eve_internal/eve`） |
+| 構成要素 | 内容                                                             |
+| -------- | ---------------------------------------------------------------- |
+| Next.js  | UI + Elysia `/api/v1`                                            |
+| Eve      | エージェントランタイム（`withEve` が内部ルートとして同居させる） |
 
 1. Vercel にプロジェクトを作成する
 2. 環境変数を設定する: `BETTER_AUTH_SECRET` / `BETTER_AUTH_URL`（本番URL）/ `TURSO_DATABASE_URL`（既存環境では `TURSO_URL` も可）/ `TURSO_AUTH_TOKEN` / `AI_GATEWAY_API_KEY`（Production・Preview。詳細は下記「AI Gateway のコスト管理」）

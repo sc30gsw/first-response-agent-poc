@@ -38,7 +38,7 @@ flowchart TB
   auth --> db
 ```
 
-Vercel では [`vercel.json`](../vercel.json) のサービス設定により `web`（Next.js）と `eve`（`/_eve_internal/eve`）の 2 サービスがデプロイされます。
+Vercel では [`next.config.ts`](../next.config.ts) の `withEve` により、Next.js と Eve エージェントランタイムを1つのプロジェクトとしてデプロイします。Eve のルートは同一オリジンの内部名前空間（既定 `/_eve_internal/eve`）にマウントされます（`vercel.json` は使用していません）。
 
 ## ディレクトリ構成
 
