@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Result } from "better-result";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
+import { z } from "zod";
 import { cn } from "cnfast";
 import { threadApiClient } from "@/lib/api-client";
 import { threadQueryKeys } from "@/lib/query-keys";
@@ -11,6 +12,7 @@ import { SAMPLE_CASES } from "@/lib/sample-cases";
 import type { ThreadSummary } from "@/shared/types/thread";
 import { truncateThreadTitle } from "@/shared/types/thread";
 import { WorkspaceShell } from "./workspace-shell";
+import { useAppForm } from "./app-form";
 
 const MAX_CASE_NAME_CHARS = 60;
 
@@ -24,7 +26,6 @@ export function WorkspaceHome({ threads }: { readonly threads: readonly ThreadSu
   const router = useRouter();
   const queryClient = useQueryClient();
   const nameInputRef = useRef<HTMLInputElement>(null);
-  const [caseName, setCaseName] = useState("");
   const [pendingSample, setPendingSample] = useState<SampleCase | null>(null);
   const [error, setError] = useState<string | null>(null);
   const createThread = useMutation({
@@ -54,27 +55,31 @@ export function WorkspaceHome({ threads }: { readonly threads: readonly ThreadSu
     retry: false,
     scope: { id: "thread-create" },
   });
+  const form = useAppForm({
+    defaultValues: { caseName: "" },
+    onSubmit: ({ value }) => {
+      setError(null);
+      createThread.mutate({
+        name: value.caseName.trim(),
+        prompt: pendingSample?.prompt ?? null,
+      });
+    },
+    onSubmitInvalid: () => {
+      // The field-level error takes over the single role="alert" region; drop
+      // any stale mutation error so two alerts never show at once.
+      setError(null);
+      nameInputRef.current?.focus();
+    },
+  });
 
   function chooseSample(sample: SampleCase) {
-    setCaseName(sample.label);
+    form.setFieldValue("caseName", sample.label);
     setPendingSample(sample);
     nameInputRef.current?.focus();
   }
 
   function clearPendingSample() {
     setPendingSample(null);
-  }
-
-  function submitCase() {
-    const name = caseName.trim();
-    if (!name) {
-      setError("案件名を入力してください。");
-      nameInputRef.current?.focus();
-      return;
-    }
-
-    setError(null);
-    createThread.mutate({ name, prompt: pendingSample?.prompt ?? null });
   }
 
   return (
@@ -106,38 +111,70 @@ export function WorkspaceHome({ threads }: { readonly threads: readonly ThreadSu
         </section>
 
         <section className="mt-7 rounded-[14px] border border-control-line bg-paper p-5 shadow-[0_18px_50px_rgb(16_38_59/7%)] focus-within:border-teal focus-within:shadow-[0_0_0_3px_rgb(25_119_113/15%),0_18px_50px_rgb(16_38_59/7%)]" aria-labelledby="composer-heading">
-          <div className="mb-[13px] flex items-center justify-between">
-            <label htmlFor="case-input" className="m-0 text-base tracking-[0.04em] cursor-text">案件名</label>
-            <span className="text-[0.7rem] text-ink-soft">{caseName.length.toLocaleString("ja-JP")} / {MAX_CASE_NAME_CHARS.toLocaleString("ja-JP")} 文字</span>
-          </div>
-          <input
-            ref={nameInputRef}
-            id="case-input"
-            type="text"
-            value={caseName}
-            maxLength={MAX_CASE_NAME_CHARS}
-            aria-describedby="privacy-reminder"
-            aria-invalid={error ? true : undefined}
-            placeholder="例：相続した空き家の共有名義について"
-            className="w-full border-0 bg-transparent text-[0.94rem] leading-[1.85] text-ink outline-none"
-            onChange={(event) => setCaseName(event.target.value)}
-          />
-          {pendingSample ? (
-            <p className="m-0 mt-2.5 flex items-center gap-2.5 text-[0.78rem] text-[#176c67]">
-              「{pendingSample.label}」の相談内容を次の画面へ引き継ぎます
-              <button className="cursor-pointer border-0 bg-transparent p-0 font-bold text-ink-soft underline decoration-dotted underline-offset-2" type="button" onClick={clearPendingSample}>
-                引き継ぎを取り消す
-              </button>
-            </p>
-          ) : null}
-          <div className="flex items-center justify-between gap-5 border-t border-[#e7eceb] pt-3.5 max-sm:flex-col max-sm:items-stretch">
-            <p id="privacy-reminder" className="m-0 flex items-center gap-[7px] text-[0.72rem] text-[#75581d]"><span className="grid size-[18px] place-items-center rounded-full bg-amber-pale font-black" aria-hidden="true">!</span> 実在する氏名・住所・連絡先などは入力しないでください。</p>
-            <button className="inline-flex min-h-11 items-center justify-center gap-[22px] rounded-[10px] bg-navy px-[18px] py-2.5 font-bold text-white hover:bg-navy-deep disabled:cursor-wait disabled:opacity-[.62] max-sm:w-full" type="button" disabled={createThread.isPending} onClick={submitCase}>
-              {createThread.isPending ? "相談票を作成中…" : "この内容で相談を開始"}
-              <span aria-hidden="true">→</span>
-            </button>
-          </div>
-          {error ? <p className="text-[0.82rem] font-bold text-danger" role="alert">{error}</p> : null}
+          <form onSubmit={event => {
+            event.preventDefault();
+            void form.handleSubmit();
+          }}>
+          <form.AppForm>
+            <div className="mb-[13px] flex items-center justify-between">
+              <label htmlFor="case-input" className="m-0 text-base tracking-[0.04em] cursor-text">案件名</label>
+              <form.Subscribe selector={state => state.values.caseName.length}>
+                {length => <span className="text-[0.7rem] text-ink-soft">{length.toLocaleString("ja-JP")} / {MAX_CASE_NAME_CHARS.toLocaleString("ja-JP")} 文字</span>}
+              </form.Subscribe>
+            </div>
+            <form.AppField
+              name="caseName"
+              validators={{
+                // onChange lets a submit-blocked form recover as soon as the
+                // user types; the empty check stays on submit so the field is
+                // not flagged while the user has simply not typed yet.
+                onChange: z.string().max(MAX_CASE_NAME_CHARS, `案件名は${MAX_CASE_NAME_CHARS}文字以内で入力してください。`),
+                onSubmit: z.string().trim().min(1, "案件名を入力してください。"),
+              }}
+            >
+              {field => {
+                const fieldError = field.state.meta.errors.at(0);
+                const errorMessage = typeof fieldError === "string" ? fieldError : fieldError?.message;
+                return <>
+                  <input
+                    ref={nameInputRef}
+                    id="case-input"
+                    type="text"
+                    value={field.state.value}
+                    maxLength={MAX_CASE_NAME_CHARS}
+                    aria-describedby="privacy-reminder"
+                    aria-invalid={errorMessage ? true : undefined}
+                    placeholder="例：相続した空き家の共有名義について"
+                    className="w-full border-0 bg-transparent text-[0.94rem] leading-[1.85] text-ink outline-none"
+                    onBlur={field.handleBlur}
+                    onChange={event => field.handleChange(event.target.value.slice(0, MAX_CASE_NAME_CHARS))}
+                  />
+                  {errorMessage ? <p className="text-[0.82rem] font-bold text-danger" role="alert">{errorMessage}</p> : null}
+                </>;
+              }}
+            </form.AppField>
+            {pendingSample ? (
+              <p className="m-0 mt-2.5 flex items-center gap-2.5 text-[0.78rem] text-[#176c67]">
+                「{pendingSample.label}」の相談内容を次の画面へ引き継ぎます
+                <button className="cursor-pointer border-0 bg-transparent p-0 font-bold text-ink-soft underline decoration-dotted underline-offset-2" type="button" onClick={clearPendingSample}>
+                  引き継ぎを取り消す
+                </button>
+              </p>
+            ) : null}
+            <div className="flex items-center justify-between gap-5 border-t border-[#e7eceb] pt-3.5 max-sm:flex-col max-sm:items-stretch">
+              <p id="privacy-reminder" className="m-0 flex items-center gap-[7px] text-[0.72rem] text-[#75581d]"><span className="grid size-[18px] place-items-center rounded-full bg-amber-pale font-black" aria-hidden="true">!</span> 実在する氏名・住所・連絡先などは入力しないでください。</p>
+              <form.Subscribe selector={state => state.canSubmit}>
+                {canSubmit => (
+                  <button className="inline-flex min-h-11 items-center justify-center gap-[22px] rounded-[10px] bg-navy px-[18px] py-2.5 font-bold text-white hover:bg-navy-deep disabled:cursor-not-allowed disabled:opacity-[.62] max-sm:w-full" type="submit" disabled={!canSubmit || createThread.isPending}>
+                    {createThread.isPending ? "相談票を作成中…" : "この内容で相談を開始"}
+                    <span aria-hidden="true">→</span>
+                  </button>
+                )}
+              </form.Subscribe>
+            </div>
+            {error ? <p className="text-[0.82rem] font-bold text-danger" role="alert">{error}</p> : null}
+          </form.AppForm>
+          </form>
         </section>
       </div>
     </WorkspaceShell>

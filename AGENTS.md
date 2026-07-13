@@ -37,7 +37,7 @@ compatibility alias when `TURSO_DATABASE_URL` is unset. See
 ## Toolchain & Quality Gates
 
 - pnpm 9.15.0, Node >= 24. Run `pnpm install` first — node_modules may be absent.
-- Vitest is configured for deterministic tests under `tests/**/*.test.ts`.
+- Vitest is configured for deterministic tests under `tests/**/*.test.{ts,tsx}` (node environment by default; UI component tests opt into jsdom with a leading `// @vitest-environment jsdom` pragma and Testing Library, asserting public DOM behavior only).
 - No lint or format tooling exists. Do not invent lint/format commands.
 - Required quality gate: `pnpm test`, `pnpm typecheck`, and `pnpm build`.
 - For final review of React/Next.js changes, also run `npx react-doctor@latest --verbose --scope changed`.
