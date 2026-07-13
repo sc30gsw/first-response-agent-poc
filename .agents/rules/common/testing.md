@@ -1,8 +1,8 @@
 ---
 description: Vitest TDD boundaries and the repository quality gate
-globs: ["tests/**/*.test.ts", "agent/**/*.ts", "server/**/*.ts", "shared/**/*.ts"]
+globs: ["tests/**/*.test.{ts,tsx}", "agent/**/*.ts", "server/**/*.ts", "shared/**/*.ts"]
 paths:
-  - "tests/**/*.test.ts"
+  - "tests/**/*.test.{ts,tsx}"
   - "agent/**/*.ts"
   - "server/**/*.ts"
   - "shared/**/*.ts"
@@ -11,7 +11,7 @@ alwaysApply: true
 
 # Testing
 
-This repository uses deterministic Vitest tests under `tests/**/*.test.ts`. It does not use Eve evals as its required test suite.
+This repository uses deterministic Vitest tests under `tests/**/*.test.{ts,tsx}`. The default environment is node; UI component tests use a `.tsx` file with a leading `// @vitest-environment jsdom` pragma and assert public DOM behavior via Testing Library. It does not use Eve evals as its required test suite.
 
 ## TDD workflow
 
