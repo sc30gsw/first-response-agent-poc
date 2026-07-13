@@ -59,8 +59,7 @@ AIが
 ## デモ動画
 ※ 1.5〜2.0倍速でご覧いただくとスムーズかと思います。
 
-https://github.com/user-attachments/assets/f11300dd-4542-48e1-9e6c-f25dac8e60d5
-
+https://github.com/user-attachments/assets/f08dbfae-d8ce-420b-a6d9-4b306bfce91c
 
 ## デモフロー
 
