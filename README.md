@@ -200,8 +200,12 @@ pnpm dev               # http://localhost:3000
 スレッドAPIはElysiaで `/api/v1` 以下へ公開します。ブラウザはEdenの型付きadapterをTanStack Queryから利用し、Server Componentは同じApplication Serviceを直接呼び出します。
 更新はETag/`X-Thread-Revision`で競合を検出し、API responseはOpenAPIを含め `Cache-Control: no-store` とします。
 
-- 対話型OpenAPI: [`/api/v1/openapi`](http://localhost:3000/api/v1/openapi)
-- OpenAPI JSON: [`/api/v1/openapi/json`](http://localhost:3000/api/v1/openapi/json)
+APIドキュメントはOpenAPIから自動生成され、次のURLで参照できます。
+
+| ドキュメント   | パス                   | ローカル                                                              | 本番                                                                                                    |
+| -------------- | ---------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| 対話型OpenAPI  | `/api/v1/openapi`      | [localhost:3000](http://localhost:3000/api/v1/openapi)                | [first-response-agent-poc.vercel.app](https://first-response-agent-poc.vercel.app/api/v1/openapi)        |
+| OpenAPI JSON   | `/api/v1/openapi/json` | [localhost:3000](http://localhost:3000/api/v1/openapi/json)           | [first-response-agent-poc.vercel.app](https://first-response-agent-poc.vercel.app/api/v1/openapi/json)   |
 
 ## 品質ゲート
 
