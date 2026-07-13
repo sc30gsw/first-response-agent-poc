@@ -28,12 +28,15 @@
     "typecheck": "next typegen && tsc --noEmit -p tsconfig.json",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "doctor": "npx react-doctor@latest"
+    "doctor": "npx react-doctor@latest",
+    "genui:generate": "openui --no-telemetry generate app/_components/genui/library.tsx --out agent/generated/genui-system-prompt.txt && openui --no-telemetry generate app/_components/genui/library.tsx --json-schema --out shared/genui/component-spec.json && node scripts/generate-genui-prompt.mjs"
   },
   "dependencies": {
     "@elysiajs/eden": "1.4.9",
     "@elysiajs/openapi": "1.4.15",
     "@libsql/client": "^0.17.4",
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "@openuidev/react-lang": "0.2.8",
     "@tanstack/react-query": "5.101.2",
     "ai": "^7.0.16",
     "better-auth": "^1.6.23",
@@ -48,6 +51,7 @@
     "zod": "4.4.3"
   },
   "devDependencies": {
+    "@openuidev/cli": "0.1.7",
     "@tailwindcss/postcss": "^4.3.2",
     "@types/node": "26.1.0",
     "@types/react": "^19.0.0",

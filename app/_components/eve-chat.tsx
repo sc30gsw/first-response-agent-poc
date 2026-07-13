@@ -5,7 +5,6 @@ import { Result } from "better-result";
 import { useEveAgent, type EveMessage } from "eve/react";
 import { useRef, useState } from "react";
 import type { RefObject, SubmitEvent } from "react";
-import { flushSync } from "react-dom";
 import { cn } from "cnfast";
 import { MAX_CHAT_MESSAGE_CHARS } from "@/shared/chat-limits";
 import {
@@ -20,8 +19,12 @@ import {
   type ThreadSummary,
 } from "@/shared/types/thread";
 import type { Expert } from "@/shared/tools/first-response";
+import { AnalyzeCaseOutputSchema, type AnalyzeCaseOutput } from "@/shared/tools/first-response";
 import { AccessibleTooltip } from "./accessible-tooltip";
 import { eveErrorMessage } from "./eve-error-message";
+import { extractOpenUiBlock } from "./genui/extract-openui";
+import { AnalysisGenUi, AnalysisGenUiSkeleton } from "./genui/renderer";
+import { validateAnalysisGenUi } from "./genui/validation";
 import { ToolResult } from "./tool-results";
 import { useThreadPersistence } from "./use-thread-persistence";
 import { WorkspaceShell } from "./workspace-shell";
@@ -195,13 +198,11 @@ export function EveChat({ thread, threads }: EveChatProps) {
     expectsAnalysisActionRef.current = true;
     receivedAnalysisActionRef.current = false;
     const isFirstMessage = persistence.beginFirstMessageSummaryIfNeeded(message, normalizeThreadSummary);
-    // Eve updates its status after send() begins. Flush this local state first
-    // so the user gets feedback in the same frame as the submit interaction.
-    flushSync(() => {
-      setAnnouncement("相談内容を受け付け、分析を開始しています。");
-      setDraft("");
-      setIsSendStarting(true);
-    });
+    // These updates are batched at the end of the submit event, before the
+    // asynchronous send operation can update the agent status.
+    setAnnouncement("相談内容を受け付け、分析を開始しています。");
+    setDraft("");
+    setIsSendStarting(true);
     const sent = await sendAgentInput(
       { message },
       "メッセージを送信できませんでした。再度お試しください。",
@@ -482,6 +483,17 @@ function ChatMessage({
   readonly onAnnounce: (message: string) => void;
 }) {
   const hasVisibleContent = hasVisibleMessageContent(message);
+  const analysis = findAnalysisOutput(message);
+  const assistantText = message.role === "assistant"
+    ? message.parts.reduce((text, part) => part.type === "text" ? `${text}${part.text}` : text, "")
+    : "";
+  const openUi = analysis ? extractOpenUiBlock(assistantText) : null;
+  const hasRoot = openUi ? /^\s*root\s*=\s*Report\(/u.test(openUi.source) : false;
+  const completedValidation = analysis && openUi?.closed && !isPending
+    ? validateAnalysisGenUi(openUi.source, analysis)
+    : null;
+  const showGenUi = Boolean(analysis && openUi && hasRoot && (!completedValidation || completedValidation.ok));
+  const showAnalysisSkeleton = Boolean(analysis && isPending && !showGenUi);
 
   return (
     <li className={cn("grid gap-2", message.role === "user" && "w-[min(620px,88%)] justify-self-end max-sm:w-[94%]")}>
@@ -498,9 +510,24 @@ function ChatMessage({
         ) : null}
         {message.parts.map((part, index) => {
           if (part.type === "text") {
+            if (analysis) return null;
             return part.text.trim() ? <p key={`${message.id}:text:${index}`}>{part.text}</p> : null;
           }
           if (part.type === "dynamic-tool") {
+            if (part.toolName === "analyze_case" && analysis) {
+              if (showGenUi && openUi) {
+                return <AnalysisGenUi
+                  canRespond={canRespond}
+                  isStreaming={isPending || !openUi.closed}
+                  key={part.toolCallId}
+                  onFocusComposer={onFocusComposer}
+                  onRequestConsultation={onRequestConsultation}
+                  output={analysis}
+                  response={openUi.source}
+                />;
+              }
+              if (showAnalysisSkeleton) return <AnalysisGenUiSkeleton key={part.toolCallId} />;
+            }
             return <ToolResult key={part.toolCallId} part={part} canRespond={canRespond} onRespond={onRespond} onRequestConsultation={onRequestConsultation} onFocusComposer={onFocusComposer} onAnnounce={onAnnounce} />;
           }
           return null;
@@ -508,6 +535,15 @@ function ChatMessage({
       </div>
     </li>
   );
+}
+
+function findAnalysisOutput(message: EveMessage): AnalyzeCaseOutput | null {
+  for (const part of message.parts) {
+    if (part.type !== "dynamic-tool" || part.toolName !== "analyze_case" || part.state !== "output-available") continue;
+    const parsed = AnalyzeCaseOutputSchema.safeParse(part.output);
+    if (parsed.success) return parsed.data;
+  }
+  return null;
 }
 
 function hasVisibleMessageContent(message: EveMessage) {

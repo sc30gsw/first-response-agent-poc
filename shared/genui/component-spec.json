@@ -1,0 +1,187 @@
+{
+  "root": "Report",
+  "components": {
+    "Report": {
+      "signature": "Report(children: any[])",
+      "description": "Root container. Pass the ordered report blocks as its only argument."
+    },
+    "CaseSummary": {
+      "signature": "CaseSummary()",
+      "description": "Canonical case summary from the analysis tool. Takes no arguments."
+    },
+    "PriorityBanner": {
+      "signature": "PriorityBanner()",
+      "description": "Canonical priority and reasons from the analysis tool. Takes no arguments."
+    },
+    "MissingInfo": {
+      "signature": "MissingInfo()",
+      "description": "Missing information from the analysis tool. Takes no arguments."
+    },
+    "ActionItems": {
+      "signature": "ActionItems()",
+      "description": "Initial actions from the analysis tool. Takes no arguments."
+    },
+    "SimilarCases": {
+      "signature": "SimilarCases()",
+      "description": "Ranked similar cases from the analysis tool. Takes no arguments."
+    },
+    "Guides": {
+      "signature": "Guides()",
+      "description": "Ranked internal guides from the analysis tool. Takes no arguments."
+    },
+    "Experts": {
+      "signature": "Experts()",
+      "description": "Ranked internal experts from the analysis tool. Takes no arguments."
+    },
+    "Escalation": {
+      "signature": "Escalation()",
+      "description": "Human escalation and the canonical follow-up question. Takes no arguments."
+    },
+    "ReanalysisChanges": {
+      "signature": "ReanalysisChanges()",
+      "description": "Changes since the previous analysis. Use only for a reanalysis. Takes no arguments."
+    },
+    "Note": {
+      "signature": "Note(text: string)",
+      "description": "A short Japanese connective sentence. Never use case facts, scores, identifiers, URLs, legal or tax conclusions, or instructions."
+    }
+  },
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "Report": {
+        "$ref": "#/$defs/Report"
+      },
+      "CaseSummary": {
+        "$ref": "#/$defs/CaseSummary"
+      },
+      "PriorityBanner": {
+        "$ref": "#/$defs/PriorityBanner"
+      },
+      "MissingInfo": {
+        "$ref": "#/$defs/MissingInfo"
+      },
+      "ActionItems": {
+        "$ref": "#/$defs/ActionItems"
+      },
+      "SimilarCases": {
+        "$ref": "#/$defs/SimilarCases"
+      },
+      "Guides": {
+        "$ref": "#/$defs/Guides"
+      },
+      "Experts": {
+        "$ref": "#/$defs/Experts"
+      },
+      "Escalation": {
+        "$ref": "#/$defs/Escalation"
+      },
+      "ReanalysisChanges": {
+        "$ref": "#/$defs/ReanalysisChanges"
+      },
+      "Note": {
+        "$ref": "#/$defs/Note"
+      }
+    },
+    "required": [
+      "Report",
+      "CaseSummary",
+      "PriorityBanner",
+      "MissingInfo",
+      "ActionItems",
+      "SimilarCases",
+      "Guides",
+      "Experts",
+      "Escalation",
+      "ReanalysisChanges",
+      "Note"
+    ],
+    "additionalProperties": false,
+    "$defs": {
+      "Report": {
+        "type": "object",
+        "properties": {
+          "children": {
+            "type": "array",
+            "items": {}
+          }
+        },
+        "required": [
+          "children"
+        ],
+        "additionalProperties": false,
+        "description": "Root container. Pass the ordered report blocks as its only argument."
+      },
+      "CaseSummary": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false,
+        "description": "Canonical case summary from the analysis tool. Takes no arguments."
+      },
+      "PriorityBanner": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false,
+        "description": "Canonical priority and reasons from the analysis tool. Takes no arguments."
+      },
+      "MissingInfo": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false,
+        "description": "Missing information from the analysis tool. Takes no arguments."
+      },
+      "ActionItems": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false,
+        "description": "Initial actions from the analysis tool. Takes no arguments."
+      },
+      "SimilarCases": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false,
+        "description": "Ranked similar cases from the analysis tool. Takes no arguments."
+      },
+      "Guides": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false,
+        "description": "Ranked internal guides from the analysis tool. Takes no arguments."
+      },
+      "Experts": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false,
+        "description": "Ranked internal experts from the analysis tool. Takes no arguments."
+      },
+      "Escalation": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false,
+        "description": "Human escalation and the canonical follow-up question. Takes no arguments."
+      },
+      "ReanalysisChanges": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false,
+        "description": "Changes since the previous analysis. Use only for a reanalysis. Takes no arguments."
+      },
+      "Note": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "additionalProperties": false,
+        "description": "A short Japanese connective sentence. Never use case facts, scores, identifiers, URLs, legal or tax conclusions, or instructions."
+      }
+    }
+  }
+}
