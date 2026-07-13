@@ -510,7 +510,7 @@ describe("Eve WebチャネルのHTTPセキュリティ", () => {
     });
   });
 
-  it("同一ユーザーの実行中ターンを共有DBリースで1件に制限する", async () => {
+  it("同一スレッドの実行中ターンを共有DBリースで1件に制限する", async () => {
     const cookie = await signIn("198.51.100.38");
     const threadId = await createThread(cookie);
     const heldArgs = {
@@ -544,6 +544,75 @@ describe("Eve WebチャネルのHTTPセキュリティ", () => {
       ok: false,
       retryAfter: 60,
     });
+  });
+
+  it("同一ユーザーでも別スレッドなら並列に分析を開始できる", async () => {
+    const cookie = await signIn("198.51.100.44");
+    const firstThread = await createThread(cookie);
+    const secondThread = await createThread(cookie);
+    let sequence = 0;
+    const heldArgs = {
+      ...context.args,
+      async send(_input, options) {
+        const session = fakeSession(`eve-session-parallel-${sequence += 1}`);
+        context.sessions.set(session.id, session);
+        await context.security.bindSessionFromAuth(session.id, options.auth);
+        return session;
+      },
+    } satisfies RouteHandlerArgs;
+
+    const first = await route("POST", "/eve/v1/session").handler(
+      eveRequest("/eve/v1/session", "POST", cookie, firstThread, { message: "最初の相談" }, {
+        "x-forwarded-for": "198.51.100.44",
+      }),
+      heldArgs,
+    );
+    const second = await route("POST", "/eve/v1/session").handler(
+      eveRequest("/eve/v1/session", "POST", cookie, secondThread, { message: "並行する別案件の相談" }, {
+        "x-forwarded-for": "198.51.100.44",
+      }),
+      heldArgs,
+    );
+
+    expect(first.status).toBe(202);
+    expect(second.status).toBe(202);
+  });
+
+  it("session.failedが保持中のリースを解放し、同一スレッドで即時に再試行できる", async () => {
+    const cookie = await signIn("198.51.100.45");
+    const threadId = await createThread(cookie);
+    const heldArgs = {
+      ...context.args,
+      async send(_input, options) {
+        const session = fakeSession("eve-session-failed");
+        context.sessions.set(session.id, session);
+        await context.security.bindSessionFromAuth(session.id, options.auth);
+        return session;
+      },
+    } satisfies RouteHandlerArgs;
+
+    const first = await route("POST", "/eve/v1/session").handler(
+      eveRequest("/eve/v1/session", "POST", cookie, threadId, { message: "失敗する相談" }, {
+        "x-forwarded-for": "198.51.100.45",
+      }),
+      heldArgs,
+    );
+    expect(first.status).toBe(202);
+
+    const onSessionFailed = context.security.events["session.failed"];
+    if (!onSessionFailed) throw new Error("session.failed handler is not registered");
+    await onSessionFailed(
+      { code: "turn_failed", message: "boom", sessionId: "eve-session-failed" },
+      {} as Parameters<typeof onSessionFailed>[1],
+    );
+
+    const retry = await route("POST", "/eve/v1/session").handler(
+      eveRequest("/eve/v1/session", "POST", cookie, threadId, { message: "再試行の相談" }, {
+        "x-forwarded-for": "198.51.100.45",
+      }),
+      heldArgs,
+    );
+    expect(retry.status).toBe(202);
   });
 
   it("認証基盤の失敗をResultのまま返さずplain JSON 500へ変換する", async () => {

@@ -27,6 +27,9 @@ export const eveSessionBindings = sqliteTable("eve_session_bindings", {
   sessionId: text("session_id").$type<EveSessionId>().primaryKey(),
   userId: text("user_id").$type<User["id"]>().notNull(),
   threadId: text("thread_id").$type<Thread["id"]>().notNull(),
+  // Latest verified run lease for this session; lets session.failed (which has
+  // no auth context) release the exact lease instead of waiting out the TTL.
+  leaseId: text("lease_id").$type<AgentRunLease["leaseId"]>(),
   createdAt: integer("created_at", { mode: "timestamp_ms" })
     .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
     .notNull(),

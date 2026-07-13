@@ -7,7 +7,7 @@ const EveRateLimitBodySchema = z.object({
 });
 
 const CONCURRENT_TURN_MESSAGE =
-  "PoCでは同時に1件のみ分析できます。前の分析がまだ実行中、または終了処理中です。画面上部が「待機中」になってから、少し待って再度お試しください。";
+  "この相談では同時に1件のみ分析できます。前の分析がまだ実行中、または終了処理中です。画面上部が「待機中」になってから再度お試しください。別の相談スレッドであれば、このまま並行して分析できます。";
 
 function formatRetryAfter(seconds: number | undefined) {
   if (seconds === undefined) return "時間をおいて";

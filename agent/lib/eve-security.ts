@@ -384,7 +384,7 @@ export function createEveSecurity(options: CreateEveSecurityOptions) {
   const database = options.database ?? db;
   const limits = { ...DEFAULT_LIMITS, ...options.limits };
   if (limits.maxConcurrent !== 1) {
-    throw new Error("Eve security currently requires maxConcurrent to be 1.");
+    throw new Error("Eve security currently requires maxConcurrent to be 1 (one running turn per thread).");
   }
   const secret = options.secret ?? process.env.BETTER_AUTH_SECRET;
   if (!secret) {
@@ -450,10 +450,10 @@ export function createEveSecurity(options: CreateEveSecurityOptions) {
     });
   }
 
-  async function acquireLease(userId: User["id"]) {
+  async function acquireLease(userId: User["id"], threadId: Thread["id"]) {
     const now = new Date();
     const leaseId = crypto.randomUUID();
-    const subjectKey = keyedHash(`lease:${userId}`);
+    const subjectKey = keyedHash(`lease:${userId}:${threadId}`);
     const expiresAt = new Date(now.getTime() + limits.leaseSeconds * 1_000);
     return Result.gen(async function* () {
       const rows = yield* Result.await(runDatabase(
@@ -482,6 +482,7 @@ export function createEveSecurity(options: CreateEveSecurityOptions) {
     auth: SessionAuthContext | null,
   ) {
     const threadId = readAttribute(auth, "threadId");
+    const leaseId = readAttribute(auth, "leaseId");
     const userId = auth?.principalId;
     if (!threadId || !userId) {
       return Result.err(new EveAuthorizationError({
@@ -524,7 +525,19 @@ export function createEveSecurity(options: CreateEveSecurityOptions) {
           .where(and(eq(threads.id, threadId), eq(threads.userId, userId)))
           .limit(1),
       ));
-      if (ownedThreads[0]) return Result.ok(undefined);
+      if (ownedThreads[0]) {
+        // Record the verified turn's lease only after ownership checks pass, so
+        // a forbidden caller can never overwrite another session's lease id.
+        if (leaseId) {
+          yield* Result.await(runDatabase(
+            "bind-session",
+            () => database.update(eveSessionBindings)
+              .set({ leaseId })
+              .where(eq(eveSessionBindings.sessionId, sessionId)),
+          ));
+        }
+        return Result.ok(undefined);
+      }
 
       const timestamp = new Date();
       yield* Result.await(runDatabase(
@@ -542,14 +555,15 @@ export function createEveSecurity(options: CreateEveSecurityOptions) {
 
   async function releaseLeaseResult(auth: SessionAuthContext | null) {
     const leaseId = readAttribute(auth, "leaseId");
+    const threadId = readAttribute(auth, "threadId");
     const userId = auth?.principalId;
-    if (!leaseId || !userId) return Result.ok(undefined);
+    if (!leaseId || !userId || !threadId) return Result.ok(undefined);
 
     return runDatabase(
       "release-lease",
       async () => {
         await database.delete(agentRunLeases).where(and(
-          eq(agentRunLeases.subjectKey, keyedHash(`lease:${userId}`)),
+          eq(agentRunLeases.subjectKey, keyedHash(`lease:${userId}:${threadId}`)),
           eq(agentRunLeases.leaseId, leaseId),
         ));
       },
@@ -598,7 +612,7 @@ export function createEveSecurity(options: CreateEveSecurityOptions) {
         () => database.select({ leaseId: agentRunLeases.leaseId })
           .from(agentRunLeases)
           .where(and(
-            eq(agentRunLeases.subjectKey, keyedHash(`lease:${userId}`)),
+            eq(agentRunLeases.subjectKey, keyedHash(`lease:${userId}:${threadId}`)),
             gt(agentRunLeases.expiresAt, new Date()),
           ))
           .limit(1),
@@ -746,7 +760,7 @@ export function createEveSecurity(options: CreateEveSecurityOptions) {
           86_400,
           limits.globalPerDay,
         ));
-        leaseId = yield* Result.await(acquireLease(session.user.id));
+        leaseId = yield* Result.await(acquireLease(session.user.id, threadId));
       }
 
       return Result.ok({
@@ -781,15 +795,49 @@ export function createEveSecurity(options: CreateEveSecurityOptions) {
     if (Result.isError(result)) throw toEventError(result.error);
   }
 
+  async function releaseLeaseForFailedSession(rawSessionId: string) {
+    const parsedSessionId = EveSessionIdSchema.safeParse(rawSessionId);
+    if (!parsedSessionId.success) return;
+
+    const result = await Result.gen(async function* () {
+      const bindings = yield* Result.await(runDatabase(
+        "find-session-binding",
+        () => database.select({
+          userId: eveSessionBindings.userId,
+          threadId: eveSessionBindings.threadId,
+          leaseId: eveSessionBindings.leaseId,
+        })
+          .from(eveSessionBindings)
+          .where(eq(eveSessionBindings.sessionId, parsedSessionId.data))
+          .limit(1),
+      ));
+      const binding = bindings[0];
+      if (!binding?.leaseId) return Result.ok(undefined);
+      const { userId, threadId, leaseId } = binding;
+
+      yield* Result.await(runDatabase(
+        "release-lease",
+        async () => {
+          await database.delete(agentRunLeases).where(and(
+            eq(agentRunLeases.subjectKey, keyedHash(`lease:${userId}:${threadId}`)),
+            eq(agentRunLeases.leaseId, leaseId),
+          ));
+        },
+      ));
+      return Result.ok(undefined);
+    });
+    if (Result.isError(result)) throw toEventError(result.error);
+  }
+
   const auth: AuthFn<Request> = async (request) => {
     const result = await authenticateRequest(request);
     if (Result.isError(result)) throw toHttpError(result.error);
     return result.value;
   };
 
-  // Eve's session.failed callback intentionally has no SessionContext/auth.
-  // Normal failures release on turn.failed; the DB lease TTL recovers failures
-  // that happen before Eve can create an authenticated turn context.
+  // Eve's session.failed callback has no SessionContext/auth, so it releases
+  // through the persisted session binding's lease id instead. The DB lease TTL
+  // remains the backstop for failures that happen before a binding row exists.
   const events: EveChannelEvents = {
     "turn.started": async (_data, _channel, context) => {
       await bindSessionFromAuth(context.session.id, context.session.auth.current);
@@ -805,6 +853,9 @@ export function createEveSecurity(options: CreateEveSecurityOptions) {
     },
     "session.waiting": async (_data, _channel, context) => {
       await releaseLeaseFromAuth(context.session.auth.current);
+    },
+    "session.failed": async (data) => {
+      await releaseLeaseForFailedSession(data.sessionId);
     },
   };
 

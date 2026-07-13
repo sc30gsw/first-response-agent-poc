@@ -1,0 +1,1 @@
+ALTER TABLE `eve_session_bindings` ADD `lease_id` text;

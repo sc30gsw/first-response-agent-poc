@@ -36,12 +36,6 @@ type EveChatProps = {
   readonly threads: readonly ThreadSummary[];
 };
 
-const INPUT_EXAMPLES = [
-  "共有者は3名で、そのうち1名とは連絡が取れていません。",
-  "建物に傾きがあり、安全面が心配です。",
-  "接道状況は不明で、売却までの期限もまだ決まっていません。",
-] as const satisfies readonly string[];
-
 const EYEBROW = "mb-3 text-[0.8rem] font-bold tracking-[0.12em] text-[#176c67]";
 const PRIMARY_BUTTON = "inline-flex min-h-11 items-center justify-center gap-[22px] rounded-[10px] bg-navy px-[18px] py-2.5 font-bold text-white hover:bg-navy-deep disabled:cursor-wait disabled:opacity-[.62]";
 const SECONDARY_BUTTON = "min-h-10 cursor-pointer rounded-lg border border-control-line bg-white px-3.5 py-2 font-extrabold text-navy hover:border-teal hover:bg-teal-pale disabled:cursor-wait disabled:opacity-[.62]";
@@ -227,13 +221,6 @@ export function EveChat({ thread, threads }: EveChatProps) {
     inputRef.current?.focus();
   }
 
-  function appendExample(example: string) {
-    const current = form.state.values.message;
-    const nextValue = current.trim() ? `${current}\n${example}` : example;
-    form.setFieldValue("message", clampChatMessage(nextValue));
-    inputRef.current?.focus();
-  }
-
   async function submitMessage(messageValue: string) {
     const message = messageValue.trim();
     if (!message || isBusy) return;
@@ -306,7 +293,6 @@ export function EveChat({ thread, threads }: EveChatProps) {
           saveError={persistence.saveError}
           sendError={sendError}
         />
-        <InputGuidance disabled={isBusy} onAppendExample={appendExample} />
         <ChatComposer
           form={form}
           inputRef={inputRef}
@@ -440,35 +426,6 @@ function ChatFeedback({
   );
 }
 
-function InputGuidance({ disabled, onAppendExample }: {
-  readonly disabled: boolean;
-  readonly onAppendExample: (example: string) => void;
-}) {
-  return (
-    <section className="mx-auto my-3 mt-[26px] grid w-full max-w-[780px] grid-cols-[minmax(0,1fr)_minmax(250px,.8fr)] gap-5 rounded-[4px_14px_4px_4px] border border-control-line border-l-[5px] border-l-teal bg-[#f8fbfa] px-5 py-[18px] max-lg:grid-cols-1" aria-labelledby="input-guidance-title">
-      <div>
-        <p className={EYEBROW}>入力のヒント</p>
-        <h2 id="input-guidance-title" className="m-0 font-display text-[1.08rem] leading-normal">分かる事実だけを、そのまま入力してください</h2>
-        <p id="chat-input-hint" className="mt-2 mb-0 text-[0.76rem] leading-[1.7] text-ink-soft"><strong>AIへの命令文は不要です。</strong> 不明な項目は「不明」のままで構いません。</p>
-        <ol className="mt-3.5 grid list-none grid-cols-2 gap-1.5 p-0" role="list">
-          <li className="flex items-center gap-[7px] text-[0.72rem] font-bold"><span className="text-[0.64rem] font-black text-teal">01</span>物件の状態</li>
-          <li className="flex items-center gap-[7px] text-[0.72rem] font-bold"><span className="text-[0.64rem] font-black text-teal">02</span>権利・関係者</li>
-          <li className="flex items-center gap-[7px] text-[0.72rem] font-bold"><span className="text-[0.64rem] font-black text-teal">03</span>希望すること</li>
-          <li className="flex items-center gap-[7px] text-[0.72rem] font-bold"><span className="text-[0.64rem] font-black text-teal">04</span>期限・安全上の懸念</li>
-        </ol>
-      </div>
-      <div className="grid content-start gap-[7px]" aria-label="架空の追加情報例">
-        <p className="mb-0.5 text-[0.68rem] font-extrabold text-ink-soft">例を入力欄へ追加</p>
-        {INPUT_EXAMPLES.map(example => (
-          <button className="min-h-10 cursor-pointer rounded-lg border border-control-line bg-paper px-2.5 py-[7px] text-left text-[0.7rem] leading-[1.45] font-bold text-navy hover:border-teal hover:bg-teal-pale disabled:cursor-not-allowed disabled:opacity-[.58]" key={example} type="button" disabled={disabled} onClick={() => onAppendExample(example)}>
-            {example}
-          </button>
-        ))}
-      </div>
-    </section>
-  );
-}
-
 export function ChatComposer({ form, inputRef, isBusy, onStop }: {
   readonly form: ChatMessageForm;
   readonly inputRef: RefObject<HTMLTextAreaElement | null>;
@@ -490,9 +447,9 @@ export function ChatComposer({ form, inputRef, isBusy, onStop }: {
             rows={4}
             maxLength={MAX_CHAT_MESSAGE_CHARS}
             value={field.state.value}
-            aria-describedby="chat-input-hint chat-privacy-reminder"
+            aria-describedby="chat-privacy-reminder"
             disabled={isBusy}
-            placeholder="相談内容、または追加で分かったことを入力…"
+            placeholder="相談内容、または追加で分かったことを入力…（不明な項目は「不明」のままで構いません）"
             className="w-full resize-y border-0 bg-transparent text-[0.94rem] leading-[1.85] text-ink outline-none"
             onBlur={field.handleBlur}
             onChange={event => field.handleChange(clampChatMessage(event.target.value))}
