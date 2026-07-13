@@ -110,7 +110,7 @@ libsql（ローカル: `file:.data/db.sqlite` / 本番: Turso）+ Drizzle ORM。
 | `user` / `session` / `account` / `verification` | Better Auth（匿名） |
 | `threads` | チャットスレッド |
 | `rateLimit` / `agent_rate_limits` | Better Auth・Eveの共有レート制限 |
-| `agent_run_leases` | 同一利用者のEve同時実行制限 |
+| `agent_run_leases` | スレッド単位のEve同時実行制限（同一スレッド内は1件、別スレッドは並行可） |
 | `eve_session_bindings` | Eveセッションと匿名user/threadの所有権・失効状態 |
 
 マイグレーション: `pnpm db:generate` → `pnpm db:migrate`
