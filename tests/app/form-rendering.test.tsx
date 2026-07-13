@@ -53,7 +53,7 @@ function ComposerHarness({ onSubmitMessage }: {
   readonly onSubmitMessage: (message: string) => Promise<void>;
 }) {
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const form = useChatMessageForm({ initialDraft: "", onSubmitMessage });
+  const form = useChatMessageForm({ onSubmitMessage });
   return <ChatComposer form={form} inputRef={inputRef} isBusy={false} onStop={vi.fn()} />;
 }
 

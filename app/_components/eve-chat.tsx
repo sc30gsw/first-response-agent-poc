@@ -65,12 +65,15 @@ function readDraft(storageKey: string): string {
 // derived from the SDK via ReturnType instead of restating the Field /
 // Subscribe / handleSubmit API shapes by hand. Exported for the composer
 // rendering test harness.
-export function useChatMessageForm({ initialDraft, onSubmitMessage }: {
-  readonly initialDraft: string;
+export function useChatMessageForm({ onSubmitMessage }: {
   readonly onSubmitMessage: (message: string) => Promise<void>;
 }) {
+  // defaultValues must stay a constant empty message: useForm re-applies
+  // changed defaultValues over an untouched form on every render, so a
+  // handed-off draft baked in here would resurrect right after reset().
+  // Drafts are seeded post-mount via setFieldValue instead.
   return useAppForm({
-    defaultValues: { message: initialDraft },
+    defaultValues: { message: "" },
     validators: {
       onSubmit: z.object({
         message: z.string().trim().min(1, "相談内容を入力してください。"),
@@ -97,18 +100,21 @@ export function EveChat({ thread, threads }: EveChatProps) {
   // submitMessage is a hoisted function declaration below; useForm refreshes
   // its options (and this closure) on every render, so it never goes stale.
   const form = useChatMessageForm({
-    initialDraft,
     onSubmitMessage: message => submitMessage(message),
   });
 
-  // Remove the handed-off draft only after commit so render stays pure.
+  // Seed the handed-off draft and remove it from storage only after commit so
+  // render stays pure. setFieldValue also marks the field touched, which keeps
+  // useForm's per-render option refresh from overwriting later resets.
   useEffect(() => {
-    if (!initialDraft || typeof sessionStorage === "undefined") return;
+    if (!initialDraft) return;
+    form.setFieldValue("message", initialDraft);
+    if (typeof sessionStorage === "undefined") return;
     void Result.try({
       try: () => sessionStorage.removeItem(draftStorageKey),
       catch: cause => cause,
     });
-  }, [draftStorageKey, initialDraft]);
+  }, [draftStorageKey, form, initialDraft]);
 
   const agent = useEveAgent({
     headers: { "x-thread-id": thread.id },
@@ -239,10 +245,7 @@ export function EveChat({ thread, threads }: EveChatProps) {
     // These updates are batched at the end of the submit event, before the
     // asynchronous send operation can update the agent status.
     setAnnouncement("相談内容を受け付け、分析を開始しています。");
-    // reset() alone restores defaultValues, which still hold the handed-off
-    // draft — pass empty values so the composer clears and "" becomes the
-    // default for later resets.
-    form.reset({ message: "" });
+    form.reset();
     setIsSendStarting(true);
     const sent = await sendAgentInput(
       { message },
